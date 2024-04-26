@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.lxc.machine.mapper.LxcQueueMapper">
+
+    <resultMap type="com.lxc.machine.domain.LxcQueue" id="LxcQueueResult">
+        <result property="id" column="id"/>
+        <result property="lxcId" column="lxc_id"/>
+        <result property="superName" column="super_name"/>
+        <result property="superTag" column="super_tag"/>
+        <result property="tgId" column="tg_id"/>
+        <result property="ip" column="ip"/>
+        <result property="sshPort" column="ssh_port"/>
+        <result property="endTime" column="end_time"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <select id="queryAllLxc" resultMap="LxcQueueResult">
+        select a.id,b.lxc_status lxcStatus,a.lxc_id,c.ip,b.child_name,c.name super_name,c.tag super_tag,b.ssh_port, a.end_time, a.create_by, a.create_time, a.update_by, a.update_time
+        FROM lxc_queue a
+        LEFT JOIN lxc_lxc b on a.lxc_id = b.id
+        LEFT JOIN lxc_super_lxc c ON b.super_ip = c.ip
+        <where>
+            a.tg_id = #{tgId}
+        </where>
+        order by b.lxc_status,a.create_time desc
+    </select>
+
+
+</mapper>

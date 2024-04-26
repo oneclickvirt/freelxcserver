@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.lxc.machine.mapper.LxcSuperLxcMapper">
+
+    <resultMap type="com.lxc.machine.domain.LxcSuperLxc" id="LxcSuperLxcResult">
+        <result property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="tag" column="tag"/>
+        <result property="ip" column="ip"/>
+        <result property="password" column="password"/>
+        <result property="sshPort" column="ssh_port"/>
+        <result property="date" column="date"/>
+        <result property="dead" column="dead"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="superStatus" column="super_status"/>
+        <result property="sshPortStart" column="ssh_port_start"/>
+        <result property="memoryLimit" column="memory_limit"/>
+        <result property="diskLimit" column="disk_limit"/>
+        <result property="maxQuantity" column="max_quantity"/>
+        <result property="expireFlag" column="expire_flag"/>
+        <result property="prefix" column="prefix"/>
+        <result property="netStartPort" column="net_start_port"/>
+        <result property="netStep" column="net_step"/>
+        <result property="upLimit" column="up_limit"/>
+        <result property="downLimit" column="down_limit"/>
+        <result property="ipv6Flag" column="ipv6_flag"/>
+        <result property="rootLimits" column="root_limits"/>
+        <result property="instanceConfig" column="instance_config"/>
+        <result property="sourceConfig" column="source_config"/>
+    </resultMap>
+
+    <select id="getSuperListWithRoles" resultMap="LxcSuperLxcResult">
+        select lsl.id,lsl.name,lsl.tag,lsl.dead,lsl.disk_limit,lsl.memory_limit,lsl.ipv6_flag,lsl.source_config from
+        lxc_super_lxc lsl
+        <where>
+            lsl.expire_flag != '${@com.lxc.common.constant.LxcConstants@LXC_SUPER_EXPIRED}'
+            and lsl.super_status != '${@com.lxc.common.constant.LxcConstants@LXC_SUPER_DISABLED}'
+            <foreach collection="sysRoles" item="role" open="and (" separator="or" close=")">
+                exists (select 1 from sys_super_role as sr where sr.role_id = #{role.roleId} and sr.super_id = lsl.id)
+            </foreach>
+        </where>
+    </select>
+
+
+</mapper>

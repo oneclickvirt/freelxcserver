@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.lxc.machine.mapper.SysLxcRoleMapper">
+
+    <resultMap type="com.lxc.machine.domain.SysLxcRole" id="SysLxcRoleResult">
+        <result property="lxcId" column="lxc_id"/>
+        <result property="roleId" column="role_id"/>
+    </resultMap>
+    <delete id="deleteByLxcId">
+        delete
+        from sys_lxc_role
+        where lxc_id = #{lxcId}
+    </delete>
+    <delete id="deleteBySuperIp">
+        delete
+        from sys_lxc_role
+        where lxc_id in (select a.id from lxc_lxc a where a.super_ip = #{superIp})
+    </delete>
+</mapper>

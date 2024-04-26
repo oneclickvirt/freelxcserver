@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.lxc.machine.mapper.LxcLxcMapper">
+
+    <resultMap type="com.lxc.machine.domain.LxcLxc" id="LxcLxcResult">
+        <result property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="tag" column="tag"/>
+        <result property="superIp" column="super_ip"/>
+        <result property="childName" column="child_name"/>
+        <result property="sshPort" column="ssh_port"/>
+        <result property="password" column="password"/>
+        <result property="portStart" column="port_start"/>
+        <result property="portEnd" column="port_end"/>
+        <result property="superDate" column="super_date"/>
+        <result property="superDead" column="super_dead"/>
+        <result property="state" column="state"/>
+        <result property="lxcStatus" column="lxc_status"/>
+        <result property="hostInterface" column="host_interface"/>
+        <result property="ipv6Addr" column="ipv6_addr"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <select id="getLxcListWithRoles" resultMap="LxcLxcResult">
+        select lxc.id,lxc.name,lxc.tag,lxc.child_name,lxc.super_dead from lxc_lxc as lxc
+        <where>
+            lxc.state = 0
+            <foreach collection="sysRoles" item="role" open="and (" separator="or" close=")">
+                exists (select 1 from sys_lxc_role as sr where sr.role_id = #{role.roleId} and sr.lxc_id = lxc.id)
+            </foreach>
+        </where>
+    </select>
+
+    <select id="countUsedByTgId" resultType="java.lang.Integer">
+        SELECT COUNT(*)
+        from lxc_queue a
+                 LEFT JOIN lxc_lxc b on a.lxc_id = b.id
+        WHERE (a.tg_id = #{tgId} AND b.lxc_status != '7' and b.lxc_status != '5')
+    </select>
+
+
+</mapper>

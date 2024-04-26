@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.lxc.machine.mapper.LxcTrafficMapper">
+
+    <resultMap type="com.lxc.machine.domain.LxcTraffic" id="LxcTrafficResult">
+        <result property="lxcId" column="lxc_id"/>
+        <result property="createTime" column="create_time"/>
+        <result property="received" column="received"/>
+        <result property="sent" column="sent"/>
+    </resultMap>
+</mapper>

@@ -89,9 +89,9 @@ public class ExcelUtil {
     /**
      * 导出excel
      *
-     * @param list      导出数据集合
+     * @param list      导出数据集合（类型全是clazz）
      * @param sheetName 工作表的名称
-     * @param clazz     实体类
+     * @param clazz     实体类（导出的数据类型）
      * @param merge     是否合并单元格
      * @param response  响应体
      */
@@ -101,13 +101,13 @@ public class ExcelUtil {
             ServletOutputStream os = response.getOutputStream();
             ExcelWriterSheetBuilder builder = EasyExcel.write(os, clazz)
                 .autoCloseStream(false)
-                // 自动适配
+                // 自动适配行宽
                 .registerWriteHandler(new LongestMatchColumnWidthStyleStrategy())
                 // 大数值自动转换 防止失真
                 .registerConverter(new ExcelBigNumberConvert())
                 .sheet(sheetName);
             if (merge) {
-                // 合并处理器
+                // 合并处理器，合并相同内容的单元格
                 builder.registerWriteHandler(new CellMergeStrategy(list, true));
             }
             builder.doWrite(list);

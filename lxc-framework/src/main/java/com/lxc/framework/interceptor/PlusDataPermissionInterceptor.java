@@ -64,7 +64,7 @@ public class PlusDataPermissionInterceptor extends JsqlParserSupport implements 
     }
 
     @Override
-    protected void processSelect(Select select, int index, String sql, Object obj) {
+    protected void processSelect(Select select, int index, String sql, Object obj) {//obj是执行方法的id
         SelectBody selectBody = select.getSelectBody();
         if (selectBody instanceof PlainSelect) {
             this.setWhere((PlainSelect) selectBody, (String) obj);

@@ -119,10 +119,9 @@ public class LxcLxcController extends BaseController {
     }
 
     /**
-     * 查表，未使用linux相关知识
      * @return
      */
-    @SaCheckPermission("lxc:lxc:all")
+    @SaCheckPermission("lxc:lxc:all")//@SaCheckPermission是权限认证
     @GetMapping("/getLxcList")
     @Log(title = "查询未领取小鸡列表", businessType = BusinessType.OTHER, isSaveResponseData = false)
     public R getLxcList() {
@@ -172,6 +171,7 @@ public class LxcLxcController extends BaseController {
         String tgId = loginUser.getTgId();
         QueryWrapper<LxcQueue> query = new QueryWrapper<>();
         query.eq("lxc_id", lxcDto.getId());
+        //查询小鸡队列
         LxcQueueVo queue = queueMapper.selectVoOne(query);
         if (queue == null) {
             return R.fail(1005);
@@ -179,17 +179,19 @@ public class LxcLxcController extends BaseController {
         if (!tgId.equals(queue.getTgId())) {
             return R.fail(1004);
         }
+        //根据队列id查询小鸡信息
         LxcLxcVo lxc = lxcLxcService.queryById(queue.getLxcId());
         queue.setPortStart(lxc.getPortStart());
         queue.setPortEnd(lxc.getPortEnd());
         queue.setPassword(lxc.getPassword());
         queue.setIpv6Addr(lxc.getIpv6Addr());
         QueryWrapper<LxcSuperLxc> queryWrapper = new QueryWrapper<>();
+        //.select里的是查询后显示控制台能看到的内容
         queryWrapper.select("password").
             eq("ip", lxc.getSuperIp())
             .last("limit 1");
         LxcSuperLxcVo superLxc = superLxcMapper.selectVoOne(queryWrapper);
-
+        //构建队列信息，通过shell获取
         queue.setNetUsage(ShellUtils.getNetUsedInfo(
             ShellDto.builder()
                 .ip(lxc.getSuperIp())
@@ -212,6 +214,10 @@ public class LxcLxcController extends BaseController {
         ExcelUtil.exportExcel(list, "小鸡信息", LxcLxcVo.class, response);
     }
 
+    /**
+     * 统计在线数据
+     * @return
+     */
     @SaIgnore
     @GetMapping("/onLineLxc")
     @Cacheable(cacheNames = CacheNames.STATISTICS_LXC_LIST)

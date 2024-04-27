@@ -215,6 +215,7 @@ public interface BaseMapperPlus<M, T, V> extends BaseMapper<T> {
 
     /**
      * 分页查询VO
+     * 两种方式查询，确保能查到
      */
     default <C, P extends IPage<C>> P selectVoPage(IPage<T> page, Wrapper<T> wrapper, Class<C> voClass) {
         IPage<T> pageData = this.selectPage(page, wrapper);

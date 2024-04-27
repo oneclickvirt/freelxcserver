@@ -70,13 +70,13 @@ public class PlusDataPermissionHandler {
     public Expression getSqlSegment(Expression where, String mappedStatementId, boolean isSelect) {
         DataColumn[] dataColumns = findAnnotation(mappedStatementId);
         if (ArrayUtil.isEmpty(dataColumns)) {
-            inavlidCacheSet.add(mappedStatementId);
-            return where;
+            inavlidCacheSet.add(mappedStatementId);//把该无效命令暂入缓存
+            return where;//不用额外拼接sql
         }
-        LoginUser currentUser = DataPermissionHelper.getVariable("user");
+        LoginUser currentUser = DataPermissionHelper.getVariable("user");//当前登录用户是否为user
         if (ObjectUtil.isNull(currentUser)) {
-            currentUser = LoginHelper.getLoginUser();
-            DataPermissionHelper.setVariable("user", currentUser);
+            currentUser = LoginHelper.getLoginUser();//如果为空则重新获取登录用户
+            DataPermissionHelper.setVariable("user", currentUser);//把用户信息set回数据权限助手
         }
         // 如果是超级管理员，则不过滤数据
         if (LoginHelper.isAdmin()) {
@@ -87,11 +87,11 @@ public class PlusDataPermissionHandler {
             return where;
         }
         try {
-            Expression expression = CCJSqlParserUtil.parseExpression(dataFilterSql);
+            Expression expression = CCJSqlParserUtil.parseExpression(dataFilterSql);//解析后的sql语句
             // 数据权限使用单独的括号 防止与其他条件冲突
-            Parenthesis parenthesis = new Parenthesis(expression);
+            Parenthesis parenthesis = new Parenthesis(expression);//parenthesis n.括号
             if (ObjectUtil.isNotNull(where)) {
-                return new AndExpression(where, parenthesis);
+                return new AndExpression(where, parenthesis);//where中的表达式跟括号包裹的内容拼接，相当于where中增加了子条件
             } else {
                 return parenthesis;
             }
@@ -157,11 +157,13 @@ public class PlusDataPermissionHandler {
     }
 
     private DataColumn[] findAnnotation(String mappedStatementId) {
+        //解析mappedStatementId，划分出类名、方法名
         StringBuilder sb = new StringBuilder(mappedStatementId);
         int index = sb.lastIndexOf(".");
         String clazzName = sb.substring(0, index);
         String methodName = sb.substring(index + 1, sb.length());
         Class<?> clazz = ClassUtil.loadClass(clazzName);
+        //通过反射获取clazz中所有方法，过滤出方法名为methodName的方法及其重载
         List<Method> methods = Arrays.stream(ClassUtil.getDeclaredMethods(clazz))
             .filter(method -> method.getName().equals(methodName)).collect(Collectors.toList());
         DataPermission dataPermission;
@@ -169,8 +171,10 @@ public class PlusDataPermissionHandler {
         for (Method method : methods) {
             dataPermission = dataPermissionCacheMap.get(mappedStatementId);
             if (ObjectUtil.isNotNull(dataPermission)) {
+                //返回注解中的内容(value)
                 return dataPermission.value();
             }
+            //方法有注解但未匹配权限时，根据执行的方法赋予权限
             if (AnnotationUtil.hasAnnotation(method, DataPermission.class)) {
                 dataPermission = AnnotationUtil.getAnnotation(method, DataPermission.class);
                 dataPermissionCacheMap.put(mappedStatementId, dataPermission);

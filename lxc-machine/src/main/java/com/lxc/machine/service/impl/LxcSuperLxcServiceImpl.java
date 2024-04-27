@@ -192,8 +192,10 @@ public class LxcSuperLxcServiceImpl extends BaseService<LxcSuperLxcMapper, LxcSu
     @Override
     public List<LxcSuperLxc> getAliveLxcSuperLxcList() {
         LambdaQueryWrapper<LxcSuperLxc> lqw = Wrappers.lambdaQuery();
+        //非disabled和未超时的母鸡
         lqw.ne(LxcSuperLxc::getSuperStatus,LxcConstants.LXC_SUPER_DISABLED)
            .ne(LxcSuperLxc::getExpireFlag,LxcConstants.LXC_SUPER_EXPIRED);
+        //查哪张表取决于该类继承BaseMapper/BaseMapper时的泛型为哪个类
         List<LxcSuperLxc> list = baseMapper.selectList(lqw);
         return list;
     }

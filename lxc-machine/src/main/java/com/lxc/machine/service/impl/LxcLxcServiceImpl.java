@@ -101,6 +101,11 @@ public class LxcLxcServiceImpl extends BaseService<LxcLxcMapper, LxcLxc> impleme
         return BeanUtil.copyToList(baseMapper.getLxcListWithRoles(sysRoles), LxcLxcVo.class);
     }
 
+    /**
+     * 对LxcLxcBo中每个成员变量在数据库查找的匹配条件进行配置
+     * @param bo
+     * @return
+     */
     private LambdaQueryWrapper<LxcLxc> buildQueryWrapper(LxcLxcBo bo) {
         Map<String, Object> params = bo.getParams();
         LambdaQueryWrapper<LxcLxc> lqw = Wrappers.lambdaQuery();
@@ -211,12 +216,13 @@ public class LxcLxcServiceImpl extends BaseService<LxcLxcMapper, LxcLxc> impleme
      * 根据状态查询小鸡所有统计
      */
     public List<Map<String, Object>> getLxcStatisticsListByState(int state) {
-        if (state == 0) {
+        if (state == 0) {//空闲
             List<Map<String, Object>> freeList = Lists.newArrayList();
             lxcSuperLxcService.getAliveLxcSuperLxcList().forEach(lxcSuperLxc -> {
                 String keyOfFree = String.format(CacheNames.LXC_SUPER_APPLY_FREE, lxcSuperLxc.getId());
                 long freeNum = RedisUtils.getAtomicValue(keyOfFree);
                 if (freeNum > 0) {
+                    //空闲的小鸡名称和数量
                     Map<String, Object> freeMap = Maps.newHashMap();
                     freeMap.put("name", lxcSuperLxc.getName());
                     freeMap.put("value", freeNum);
@@ -224,7 +230,7 @@ public class LxcLxcServiceImpl extends BaseService<LxcLxcMapper, LxcLxc> impleme
                 }
             });
             return freeList;
-        } else {
+        } else {//忙碌
             QueryWrapper<LxcLxc> lxcQueryWrapper = new QueryWrapper<>();
             lxcQueryWrapper.groupBy("tag");
             lxcQueryWrapper.select("tag,name,count(*) count");
@@ -262,6 +268,7 @@ public class LxcLxcServiceImpl extends BaseService<LxcLxcMapper, LxcLxc> impleme
             .last("limit 1")
             .oneOpt()
             .map(superLxc -> {
+                //配置IP、ssh、权限、密码获取会话Sessino
                 Session session = JschUtil.getSession(superLxc.getIp(), 22, "root", superLxc.getPassword());
                 return mapper.apply(session, lxc);
             })

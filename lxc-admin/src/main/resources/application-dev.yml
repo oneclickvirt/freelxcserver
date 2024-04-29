@@ -11,7 +11,7 @@ spring.boot.admin.client:
 --- # xxl-job 配置
 xxl.job:
   # 执行器开关
-  enabled: false
+  enabled: true
   # 调度中心地址：如调度中心集群部署存在多个地址则用逗号分隔。
   admin-addresses: http://localhost:9100/xxl-job-admin
   # 执行器通讯TOKEN：非空时启用
@@ -24,11 +24,11 @@ xxl.job:
     # 执行器注册：默认IP:PORT
     address:
     # 执行器IP：默认自动获取IP
-    ip:
+    ip: localhost
     # 执行器运行日志文件存储磁盘路径
     logpath: ./logs/xxl-job
     # 执行器日志文件保存天数：大于3生效
-    logretentiondays: 30
+    logretentiondays: 15
 
 --- # 数据源配置
 spring:
@@ -49,7 +49,7 @@ spring:
           # jdbc 所有参数配置参考 https://lionli.blog.csdn.net/article/details/122018562
           # rewriteBatchedStatements=true 批处理优化 大幅提升批量插入更新删除性能(对数据库有性能损耗 使用批量操作应考虑性能问题)
 #          url: jdbc:mysql://192.168.1.10:3306/lxc_plus_1109?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=true&serverTimezone=GMT%2B8&autoReconnect=true&rewriteBatchedStatements=true
-          url: jdbc:mysql://127.0.0.1:3306/lxc_plus?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=true&serverTimezone=GMT%2B8&autoReconnect=true&rewriteBatchedStatements=true
+          url: jdbc:mysql://localhost:3306/lxc_plus?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=true&serverTimezone=GMT%2B8&autoReconnect=true&rewriteBatchedStatements=true
 #          url: jdbc:mysql://3.37.94.113:55456/lxc_plus?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=true&serverTimezone=GMT%2B8&autoReconnect=true&rewriteBatchedStatements=true
           username: root
 #          password: 12345678

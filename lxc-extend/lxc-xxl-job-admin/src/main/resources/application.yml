@@ -53,9 +53,12 @@ xxl:
     # 国际化
     i18n: zh_CN
     # 日志清理
-    logretentiondays: 30
+    logretentiondays: 15
     triggerpool:
       fast:
         max: 200
       slow:
         max: 100
+    login:
+      username: admin
+      password: 123456

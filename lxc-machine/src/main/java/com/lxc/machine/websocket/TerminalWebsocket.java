@@ -96,6 +96,7 @@ public class TerminalWebsocket {
 
     private boolean connect(Session session, Terminal terminal) throws IOException {
         String res = webSSHService.initConnection(terminal);
+        //终端连接失败，会话关闭
         if (!StringUtils.equals(res,"success") && !StringUtils.equals(res,"JSchException: Auth fail")) {
 //            session.getAsyncRemote().sendText(res);
 //            session.getAsyncRemote().sendText("连接异常！");
@@ -105,9 +106,11 @@ public class TerminalWebsocket {
         terminal.setIsAuthed(false);
         session.getAsyncRemote().sendText(res);
         try {
+            //终端连接成功，则终端被授权
             if (StringUtils.equals(res,"success")) {
                 terminal.setIsAuthed(true);
                 Thread.sleep(10);
+                //终端开始写出命令
                 webSSHService.openShellOutStream(terminal);
             }
         } catch (Exception e) {

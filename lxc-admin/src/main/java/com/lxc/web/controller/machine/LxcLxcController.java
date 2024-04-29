@@ -316,6 +316,7 @@ public class LxcLxcController extends BaseController {
         if (!userLxc) {
             throw new RuntimeException("这不是你的小鸡");
         }
+        // TODO Shell
         String command = "";
         switch (type) {
             case "summary":

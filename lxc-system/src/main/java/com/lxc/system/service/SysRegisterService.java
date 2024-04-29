@@ -61,7 +61,8 @@ public class SysRegisterService {
 
         //账号验证
         if (!BotUtils.isMember(LxcConstants.CHAT_ID, Long.valueOf(tgId))) {
-            throw new UserException("user.tg.error");
+//            throw new UserException("user.tg.error");  TODO 跳过验证
+
         }
 
 

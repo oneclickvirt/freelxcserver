@@ -398,8 +398,9 @@ public class ShellUtils {
 
     public static void main(String[] args) throws Exception {
         //        lxc info tr12 |grep -i -w status |awk '{print $NF}'
-        Session session = JschUtil.getSession("23.158.72.21", 22, "root", "ZTWHxeqAaa");
-//        List<String> cmdOutList = execCommandToLines(String.format(VNSTATI_SUMMARY, "fi1", "template"), session);
+//        Session session = JschUtil.getSession("23.158.72.21", 22, "root", "ZTWHxeqAaa");
+        Session session = JschUtil.getSession("38.45.66.95", 22, "root", "4Q3WxeyhcGggnpN");
+        //        List<String> cmdOutList = execCommandToLines(String.format(VNSTATI_SUMMARY, "fi1", "template"), session);
 //        InputStream commandInputStream = getCommandFileStream(String.format(VNSTATI_SUMMARY_STREAM, "fi1", "template"), session);
         System.out.println(1);
         //        ShellUtils.execCmd("pwd","root","jMs5N2Xmwk","213.142.134.50",22);
@@ -411,7 +412,7 @@ public class ShellUtils {
 
 //        execCmd(" lxc info sg8 | grep -A 3 'Network usage:' |awk '{print $NF}' | tail -n +3 | head -n 2",session);
 //        ShellUtils.execCmd("sudo lxc list","root","bBanjnY6AM","208.115.109.10",22);
-//        ShellUtils.execCmd(" lxc list","root","spiritlhl136@sp","51.79.165.201",22);
+        ShellUtils.execCmd("ls","root","4Q3WxeyhcGggnpN","38.45.66.95",22);
 //        ShellUtils.execCmdAndOutput("sudo lxc list","root","spiritlhl136@sp","51.79.165.201",22);
      /*   Session session2 = JschUtil.getSession("208.115.109.10",22,"root","bBanjnY6AM");
         List<String> out = execCmdAndOut(String.format(IF_PASSWD_FILE_EXIST,"test6"),session2);
@@ -492,6 +493,7 @@ public class ShellUtils {
     public static Shell initLxc(ShellDto sshDto) {
         //1、利用JschUtil获取会话连接
         Session session = JschUtil.getSession(sshDto.getIp(), sshDto.getSshPort(), sshDto.getUsername(), sshDto.getPassword());
+        System.out.println("initLxcSession:" + session);
         // 小鸡名称 内存大小 硬盘大小 SSH端口 外网起端口 外网止端口
         //  /root/modify.sh test2 30000 30001 30005 300 300
         String format = String.format(
@@ -519,6 +521,7 @@ public class ShellUtils {
         //1、利用JschUtil获取会话连接
         Session session = JschUtil.getSession(sshDto.getIp(),sshDto.getSshPort(),sshDto.getUsername(),sshDto.getPassword());
         // 小鸡名称 内存大小 硬盘大小 SSH端口 外网起端口 外网止端口
+        System.out.println("createLxcSession:" + session);
         String format = String.format(
             CREATE_LXC,
             sshDto.getChildName(),

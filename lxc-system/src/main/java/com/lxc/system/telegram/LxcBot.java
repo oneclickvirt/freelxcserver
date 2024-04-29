@@ -128,7 +128,7 @@ public class LxcBot extends TelegramLongPollingBot {
     }
 
     private void doHandel(Long chatId, String param, Integer messageId) {
-        if (BotUtils.isMember(LxcConstants.CHAT_ID,chatId)) {
+        if (!BotUtils.isMember(LxcConstants.CHAT_ID,chatId)) { // TODO 跳过验证，判断取反
             String text = lxcHandler.handle(chatId,param);
             if (StringUtils.equals(text,"start")) {
                 sendStartMsg(chatId.toString());

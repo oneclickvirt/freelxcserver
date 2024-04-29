@@ -35,7 +35,8 @@ public class BotUtils {
         GetChatMember getChatMember = new GetChatMember();
         getChatMember.setChatId(ChatId);
         getChatMember.setUserId(userId);
-        try {
+        //TODO 不获取用户信息
+      /*  try {
             ChatMember chatMember = sender.execute(getChatMember);
             status = chatMember.getStatus();
         } catch (TelegramApiException e) {
@@ -47,7 +48,7 @@ public class BotUtils {
                 log.error("获取用户状态失败", ex);
             }
 
-        }
+        }*/
 
         switch (status) {
             case "member":
@@ -59,7 +60,8 @@ public class BotUtils {
                 result = false;
                 break;
         }
-        return result;
+//        return result;
+        return true;
     }
 
 

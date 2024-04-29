@@ -120,7 +120,8 @@ public class LxcQueueController extends BaseController {
             String tgId = loginUser.getTgId();
             //账号验证
             if (!BotUtils.isMember(LxcConstants.CHAT_ID, Long.valueOf(tgId))) {
-                return R.fail(1403, "");
+//                return R.fail(1403, "");  TODO 改了验证
+//                return R.success("申请成功");
             }
             long count = lxcUserService.count(new QueryWrapper<LxcUser>().eq("tg_id", tgId));
             if (count <= 0) {
@@ -161,7 +162,8 @@ public class LxcQueueController extends BaseController {
         LxcUser tgUser = loginUser.getLxcUser();
 
         if (!BotUtils.isMember(LxcConstants.CHAT_ID, Long.valueOf(tgId))) {
-            return R.fail(1403);
+//            return R.fail(1403);  TODO 改了验证
+//            return R.success("申请成功");
         }
 
         long count = lxcUserService.count(new QueryWrapper<LxcUser>().eq("tg_id", tgId));
@@ -253,7 +255,8 @@ public class LxcQueueController extends BaseController {
 
         //账号验证
         if (!BotUtils.isMember(LxcConstants.CHAT_ID, Long.valueOf(tgId))) {
-            return R.fail(1403, "");
+//            return R.fail(1403, "");   TODO 改了验证
+//            return R.success("跳过验证");
         }
 
         LxcLxc lxc = lxcMapper.selectById(queueDto.getLxcId());

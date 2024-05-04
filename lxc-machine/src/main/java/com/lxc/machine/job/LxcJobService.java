@@ -20,6 +20,7 @@ import com.lxc.machine.service.impl.LxcQueueServiceImpl;
 import com.xxl.job.core.context.XxlJobHelper;
 import com.xxl.job.core.handler.annotation.XxlJob;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.relxd.lxd.ApiException;
 import org.relxd.lxd.api.InstancesApi;
 import org.springframework.stereotype.Service;
@@ -30,6 +31,7 @@ import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @Service
+@Slf4j
 public class LxcJobService {
     private final InstancesApi lxcApi;
 
@@ -44,6 +46,7 @@ public class LxcJobService {
                 .orderBy(true, true, "create_time")
         );
         XxlJobHelper.log("处于WAITING_FOR_PROCESS未初始化状态的小鸡有：{}个", lxcPendingList.size());
+        log.info("处于WAITING_FOR_PROCESS未初始化状态的小鸡有：{}个", lxcPendingList.size());
         lxcPendingList.stream()
             .collect(Collectors.groupingBy(LxcLxcVo::getSuperIp))
             .forEach(
@@ -64,6 +67,7 @@ public class LxcJobService {
                                 break;
                             } catch (ApiException e) {
                                 XxlJobHelper.log("小鸡{}还在初始化中，检查下一个", lxcVoList.get(0).getChildName());
+                                log.info("小鸡{}还在初始化中，检查下一个", lxcVoList.get(0).getChildName());
                             }
                         }
                         if (index == -1) {
@@ -72,13 +76,16 @@ public class LxcJobService {
                         LxcLxcVo lxc = lxcVoList.get(index);
                         try {
                             XxlJobHelper.log("开始初始化小鸡：{}", lxc.getChildName());
+                            log.info("开始初始化小鸡：{}", lxc.getChildName());
                             LxcSuperLxc superLxc = lxcSuperLxcService.getOne(new QueryWrapper<LxcSuperLxc>().eq("ip", superIp));
                             assert Objects.nonNull(superLxc);
                             LxcSuperLxcVo superLxcVo = BeanCopyUtils.copy(superLxc, LxcSuperLxcVo.class);
                             ShellDto shellDto = LxcQueueServiceImpl.prepareCreateShellDto(superLxcVo, lxc);
                             XxlJobHelper.log("小鸡创建信息：{}", shellDto);
+                            log.info("小鸡创建信息：{}", shellDto);
                             ShellUtils.Shell shell = ShellUtils.initLxc(shellDto);
                             XxlJobHelper.log("小鸡{}初始化命令：{}", lxc.getChildName(), shell.getCmd());
+                            log.info("小鸡{}初始化命令：{}", lxc.getChildName(), shell.getCmd());
                             LxcLxcBo temp = new LxcLxcBo();
                             temp.setLxcStatus(LxcStatus.PENDING.getCode());
                             temp.setId(lxc.getId());

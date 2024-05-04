@@ -2,6 +2,7 @@ package com.lxc.web.controller.machine;
 
 import cn.dev33.satoken.annotation.SaCheckPermission;
 import cn.dev33.satoken.annotation.SaIgnore;
+import cn.hutool.core.date.DateUtil;
 import cn.hutool.http.HttpStatus;
 import com.baomidou.lock.LockInfo;
 import com.baomidou.lock.LockTemplate;
@@ -25,6 +26,7 @@ import com.lxc.common.core.validate.lxc.LxcAddGroup;
 import com.lxc.common.core.validate.lxc.LxcEditGroup;
 import com.lxc.common.enums.BusinessType;
 import com.lxc.common.enums.LimitType;
+import com.lxc.common.enums.LxcStatus;
 import com.lxc.common.utils.BotUtils;
 import com.lxc.common.utils.DateUtils;
 import com.lxc.common.utils.ShellUtils;
@@ -35,8 +37,10 @@ import com.lxc.machine.domain.LxcLxc;
 import com.lxc.machine.domain.LxcQueue;
 import com.lxc.machine.domain.LxcSuperLxc;
 import com.lxc.machine.domain.bo.LxcApplyBo;
+import com.lxc.machine.domain.bo.LxcLxcBo;
 import com.lxc.machine.domain.bo.LxcQueueBo;
 import com.lxc.machine.domain.bo.SysSuperRoleBo;
+import com.lxc.machine.domain.vo.LxcLxcVo;
 import com.lxc.machine.domain.vo.LxcQueueVo;
 import com.lxc.machine.domain.vo.LxcSuperLxcVo;
 import com.lxc.machine.domain.vo.SysSuperRoleVo;
@@ -45,24 +49,30 @@ import com.lxc.machine.mapper.LxcQueueMapper;
 import com.lxc.machine.mapper.LxcSuperLxcMapper;
 import com.lxc.machine.mapper.LxcUserMapper;
 import com.lxc.machine.service.*;
+import com.lxc.machine.utils.InstancesUtils;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
 import org.redisson.api.RReadWriteLock;
 import org.relxd.lxd.model.BackgroundOperationResponse;
+import org.springframework.beans.BeanUtils;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletResponse;
+import javax.validation.Valid;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketAddress;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -78,6 +88,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @RequestMapping("/lxc/queue")
 @Slf4j
 public class LxcQueueController extends BaseController {
+    private final LxcLxcController lxcLxcController;
 
     private final ILxcQueueService lxcQueueService;
     private final ILxcUserService lxcUserService;
@@ -222,6 +233,7 @@ public class LxcQueueController extends BaseController {
             }
             RedisUtils.deleteKeys(CacheNames.FREE_LXC_LIST + "*");
             RedisUtils.deleteKeys(CacheNames.STATISTICS_LXC_LIST);
+
         } catch (Exception e) {
             RedisUtils.incrAtomicValue(keyOfFree);
             RedisUtils.decrAtomicValue(keyOfUsed);
@@ -241,6 +253,92 @@ public class LxcQueueController extends BaseController {
         String tgId = loginUser.getTgId();
         List<LxcQueueVo> queueList = lxcQueueService.queryAllLxc(tgId, DateUtils.getDate());
         return R.ok("获取成功", queueList);
+    }
+
+    /**
+     * 重建小鸡
+     * @param lxcDto
+     * @return
+     */
+    // TODO
+    @SaCheckPermission("lxc:lxc:all")
+    @PostMapping("/resetLxc")
+    @Transactional
+    public R resetUserLxcData(@RequestBody @Valid LxcLxcBo lxcDto) {
+        //先查找出选定的小鸡的信息(/lxc/userLxcData)，先存为变量VO，然后删除原小鸡(LxcLxcService有删除指定id的小鸡方法)，再用原有信息重新创建
+        //getLxcData
+        LoginUser loginUser = this.getLoginUser();
+        String tgId = loginUser.getTgId();
+        QueryWrapper<LxcQueue> query = new QueryWrapper<>();
+        query.eq("lxc_id", lxcDto.getId());
+        //查询小鸡队列,queueVo只查找一个VO对象
+        LxcQueueVo queueVo = queueMapper.selectVoOne(query);
+        if (queueVo == null) {
+            return R.fail(1005);
+        }
+        if (!tgId.equals(queueVo.getTgId())) {
+            return R.fail(1004);
+        }
+        //根据队列id查询小鸡信息
+        LxcLxcVo lxcVo = lxcLxcService.queryById(queueVo.getLxcId());
+        LxcLxc lxc = new LxcLxc();
+        BeanUtils.copyProperties(lxcVo,lxc);
+
+        lxc.setLxcStatus(LxcStatus.WAITING_FOR_PROCESS.getCode());
+        String keyOfLxc = String.format(CacheNames.LXC_LXC_RESET, lxc.getId());
+        RedisUtils.setCacheObject(keyOfLxc,lxc);
+
+        queueVo.setPortStart(lxc.getPortStart());
+        queueVo.setPortEnd(lxc.getPortEnd());
+        queueVo.setPassword(lxc.getPassword());
+        queueVo.setIpv6Addr(lxc.getIpv6Addr());
+        String keyOfQueue = String.format(CacheNames.LXC_QUEUE_RESET, lxc.getId());
+        RedisUtils.setCacheObject(keyOfQueue,queueVo);
+        log.info(">>>>>>>>>>>>>>>>>lxc:{}",lxc);
+        log.info(">>>>>>>>>>>>>>>>>queue:{}",queueVo);
+//        QueryWrapper<LxcSuperLxc> queryWrapper = new QueryWrapper<>();
+//        //.select里的是查询后显示控制台能看到的内容
+//        queryWrapper.select("password").
+//            eq("ip", lxc.getSuperIp())
+//            .last("limit 1");
+////        LxcSuperLxcVo superLxc = superLxcMapper.selectVoOne(queryWrapper);
+//        LxcSuperLxc superLxc = superLxcMapper.selectOne(queryWrapper);
+        String keyOfSuperLxc = String.format(CacheNames.LXC_SUPER_LXC_RESET, lxc.getId());
+        LxcSuperLxc superLxc = RedisUtils.getCacheObject(keyOfSuperLxc);
+        log.info("小鸡重建前信息获取成功:{}",queueVo);
+
+//        lxcQueueService.deleteWithValidByIds(Arrays.asList(queue.getId()),true);
+        Boolean aBoolean = lxcLxcService.deleteWithValidByIds(Arrays.asList(lxc.getId()), true);
+        if(aBoolean)
+            log.info("已删除小鸡信息:{}",lxc.getId());
+        else
+            log.info("删除小鸡信息失败:{}",lxc.getId());
+
+        String keyOfApplyVo = String.format(CacheNames.LXC_APPLY_VO,lxc.getId());
+        LxcApplyBo applyBo = (LxcApplyBo)RedisUtils.getCacheObject(keyOfApplyVo);
+        //重新创建lxc小鸡
+//        lxcQueueService.applyLxc(superLxc,loginUser,applyBo,true);
+        log.info(">>>>>>>>>>>>>>>>>superLxc:{}",superLxc);
+        String superLxcIp = superLxc.getIp();
+
+        try {
+            InstancesUtils.target(superLxcIp).postInstances(lxc, superLxc, applyBo);
+            lxc.setUpdateTime(DateUtil.parseDate(DateUtil.now()));
+            lxcMapper.insert(lxc);
+            LxcQueue lxcQueue = new LxcQueue();
+            BeanUtils.copyProperties(queueVo,lxcQueue);
+            lxcQueue.setUpdateTime(DateUtil.parseDate(DateUtil.now()));
+            lxcQueueService.insert(lxcQueue);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        //删除lxc和queue缓存
+//        RedisUtils.deleteObject(keyOfApplyVo);
+//        RedisUtils.deleteObject(keyOfSuperLxc);
+        RedisUtils.deleteObject(keyOfLxc);
+        RedisUtils.deleteObject(keyOfQueue);
+        return R.ok("重建小鸡成功");
     }
 
     @RateLimiter(count = 2, time = 20, limitType = LimitType.IP)

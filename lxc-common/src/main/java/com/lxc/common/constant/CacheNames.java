@@ -59,6 +59,26 @@ public interface CacheNames {
     String LXC_ADD = "lxc:add";
 
     /**
+     * 小鸡申请的宿主机和镜像信息
+     */
+    String LXC_APPLY_VO = "lxc:apply:%d:applyVO";
+
+    /**
+     * 重建时的队列信息
+     */
+    String LXC_QUEUE_RESET = "lxc:reset:%d:queue";
+
+    /**
+     * 重建时的小鸡信息
+     */
+    String LXC_LXC_RESET = "lxc:reset:%d:lxclxc";
+
+    /**
+     *
+     */
+    String LXC_SUPER_LXC_RESET = "lxc:reset:%d:superLxc";
+
+    /**
      * 自助开小鸡
      */
     String LXC_SUPER_APPLY_ALL = "lxc:super:apply:%d:all";

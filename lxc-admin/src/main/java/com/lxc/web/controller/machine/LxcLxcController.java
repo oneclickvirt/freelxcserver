@@ -171,7 +171,7 @@ public class LxcLxcController extends BaseController {
         String tgId = loginUser.getTgId();
         QueryWrapper<LxcQueue> query = new QueryWrapper<>();
         query.eq("lxc_id", lxcDto.getId());
-        //查询小鸡队列
+        //查询小鸡队列,queue只查找一个VO对象
         LxcQueueVo queue = queueMapper.selectVoOne(query);
         if (queue == null) {
             return R.fail(1005);
@@ -191,7 +191,7 @@ public class LxcLxcController extends BaseController {
             eq("ip", lxc.getSuperIp())
             .last("limit 1");
         LxcSuperLxcVo superLxc = superLxcMapper.selectVoOne(queryWrapper);
-        //构建队列信息，通过shell获取
+        //获取队列网络统计信息，通过shell获取
         queue.setNetUsage(ShellUtils.getNetUsedInfo(
             ShellDto.builder()
                 .ip(lxc.getSuperIp())
@@ -248,6 +248,7 @@ public class LxcLxcController extends BaseController {
     @RepeatSubmit()
     @PostMapping()
     public R<Void> add(@Validated(AddGroup.class) @RequestBody LxcLxcBo bo) {
+        //响应操作数据库影响的行数
         return toAjax(lxcLxcService.insertByBo(bo) ? 1 : 0);
     }
 
@@ -272,6 +273,7 @@ public class LxcLxcController extends BaseController {
     public R<Void> execCreatShell(@RequestBody LxcLxcBo bo) {
         String superIp = bo.getSuperIp();
         LxcSuperLxc superLxc = lxcSuperLxcService.getOne(new QueryWrapper<LxcSuperLxc>().eq("ip",superIp).last("LIMIT 1"));
+        //连接母鸡服务器
         ShellDto shellDto = ShellDto.builder()
                                     .ip(superLxc.getIp())
                                     .sshPort(Integer.valueOf(superLxc.getSshPort()))
@@ -280,6 +282,7 @@ public class LxcLxcController extends BaseController {
                                     .build();
         ShellUtils.execCmdAndOut(String.format(ShellUtils.IF_PASSWD_FILE_EXIST,bo.getChildName()),ShellUtils.getSession(shellDto));
         LxcLxcBo temp = new LxcLxcBo();
+        //手动将未创建小鸡变为等待中
         temp.setLxcStatus(LxcStatus.PENDING.getCode());
         temp.setId(bo.getId());
         lxcLxcService.updateByBoForce(temp);
@@ -295,10 +298,7 @@ public class LxcLxcController extends BaseController {
     @SaCheckPermission("lxc:lxc:remove")
     @Log(title = "小鸡信息", businessType = BusinessType.DELETE)
     @DeleteMapping("/{ids}")
-    public R<Void> remove(
-        @NotEmpty(message = "主键不能为空")
-        @PathVariable Long[] ids
-    ) {
+    public R<Void> remove(@NotEmpty(message = "主键不能为空") @PathVariable Long[] ids) {
         return toAjax(lxcLxcService.deleteWithValidByIds(Arrays.asList(ids), true) ? 1 : 0);
     }
 

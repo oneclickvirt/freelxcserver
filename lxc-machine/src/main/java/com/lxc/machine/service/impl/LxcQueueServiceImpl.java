@@ -63,6 +63,8 @@ public class LxcQueueServiceImpl extends BaseService<LxcQueueMapper, LxcQueue> i
 
     private final LxcLxcMapper lxcMapper;
 
+    private final LxcQueueMapper queueMapper;
+
     private final LxcSuperLxcMapper lxcSuperLxcMapper;
 
     private final SysLxcRoleMapper sysLxcRoleMapper;
@@ -241,49 +243,132 @@ public class LxcQueueServiceImpl extends BaseService<LxcQueueMapper, LxcQueue> i
         return index + 1;
     }
 
+    /**
+     * 原applyLxc
+     * @param superLxc
+     * @param loginUser
+     * @param lxcApplyBo
+     * @return
+     */
+//    @Override
+//    public R<Object> applyLxc(LxcSuperLxc superLxc, LoginUser loginUser, LxcApplyBo lxcApplyBo) {
+//        String superLxcIp = superLxc.getIp();
+//        BackgroundOperationResponse allInstancesBase = getAllInstancesBase(superLxcIp);
+//        Object metadata = allInstancesBase.getMetadata();
+//        // 转为string list
+//        List<String> instancesList = JSONUtil.parseArray(JSONUtil.toJsonStr(metadata)).toList(String.class);
+//        //获取去掉前缀的小鸡名称序号列表
+//        List<Integer> collect = instancesList.stream()
+//            .map(o -> {
+//                try {
+//                    //小鸡名称分割出前缀和序号，如te1分为te 和 1
+//                    return Integer.parseInt(o.split(superLxc.getPrefix())[1]);
+//                } catch (Exception e) {
+//                    return 0;
+//                }
+//            })
+//            .filter(o -> o != 0)
+//            .distinct()
+//            .sorted()
+//            .collect(Collectors.toList());
+//        // 找出没有连续的数字，比如1,2,5,6返回3 ，1,2,3,4返回5
+//        int portIndex = findFirstDiscontinuous(collect);
+//
+//        LxcUser tgUser = loginUser.getLxcUser();
+//        tgUser.setSurplusQuota(tgUser.getSurplusQuota() - 1);
+//        LoginHelper.setLoginUser(loginUser);
+//        //从开始端口偏移当前小鸡索引
+//        long sshPort = superLxc.getSshPortStart() + portIndex;
+//
+//        long netStartPort = superLxc.getNetStartPort() + (portIndex * superLxc.getNetStep());
+//        LxcLxc lxc = new LxcLxc().setChildName(superLxc.getPrefix() + portIndex)
+//            .setName(superLxc.getName())
+//            .setTag(superLxc.getTag())
+//            .setSuperIp(superLxcIp)
+//            .setSshPort(String.valueOf(sshPort))
+//            .setPortStart(netStartPort + "")
+//            .setPortEnd(netStartPort + (superLxc.getNetStep() - 1) + "")
+//            .setState(1)
+//            .setLxcStatus(LxcStatus.WAITING_FOR_PROCESS.getCode());
+//        try {
+//            InstancesUtils.target(superLxcIp).postInstances(lxc, superLxc, lxcApplyBo);
+//        } catch (Exception e) {
+//            throw new RuntimeException(e);
+//        }
+//        lxcMapper.insert(lxc);
+//
+//        LxcQueue queue = new LxcQueue();
+//        queue.setLxcId(lxc.getId());
+//        queue.setEndTime(superLxc.getDead());
+//        queue.setSuperName(lxc.getName());
+//        queue.setTgId(loginUser.getTgId());
+//        queue.setIp(lxc.getSuperIp());
+//        queue.setSshPort(lxc.getSshPort());
+//
+//        baseMapper.insert(queue);
+//        return null;
+//    }
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public R<Object> applyLxc(LxcSuperLxc superLxc, LoginUser loginUser, LxcApplyBo lxcApplyBo) {
+        LxcLxc lxc = new LxcLxc();
         String superLxcIp = superLxc.getIp();
-        BackgroundOperationResponse allInstancesBase = getAllInstancesBase(superLxcIp);
-        Object metadata = allInstancesBase.getMetadata();
-        // 转为string list
-        List<String> instancesList = JSONUtil.parseArray(JSONUtil.toJsonStr(metadata)).toList(String.class);
-        List<Integer> collect = instancesList.stream()
-            .map(o -> {
-                try {
-                    return Integer.parseInt(o.split(superLxc.getPrefix())[1]);
-                } catch (Exception e) {
-                    return 0;
-                }
-            })
-            .filter(o -> o != 0)
-            .distinct()
-            .sorted()
-            .collect(Collectors.toList());
-        // 找出没有连续的数字，比如1,2,5,6返回3 ，1,2,3,4返回5
-        int portIndex = findFirstDiscontinuous(collect);
+//        if(isReset) {
+//            String keyOfLxc = String.format(CacheNames.LXC_LXC_RESET,lxc.getId());
+//            lxc = RedisUtils.getCacheObject(CacheNames.LXC_LXC_RESET);
+//            lxc.setLxcStatus(LxcStatus.WAITING_FOR_PROCESS.getCode());
+//        }else {
+//            String superLxcIp = superLxc.getIp();
+            BackgroundOperationResponse allInstancesBase = getAllInstancesBase(superLxcIp);
+            Object metadata = allInstancesBase.getMetadata();
+            // 转为string list
+            List<String> instancesList = JSONUtil.parseArray(JSONUtil.toJsonStr(metadata)).toList(String.class);
+            //获取去掉前缀的小鸡名称序号列表
+            List<Integer> collect = instancesList.stream()
+                .map(o -> {
+                    try {
+                        //小鸡名称分割出前缀和序号，如te1分为te 和 1
+                        return Integer.parseInt(o.split(superLxc.getPrefix())[1]);
+                    } catch (Exception e) {
+                        return 0;
+                    }
+                })
+                .filter(o -> o != 0)
+                .distinct()
+                .sorted()
+                .collect(Collectors.toList());
+            // 找出没有连续的数字，比如1,2,5,6返回3 ，1,2,3,4返回5
+            int portIndex = findFirstDiscontinuous(collect);
 
-        LxcUser tgUser = loginUser.getLxcUser();
-        tgUser.setSurplusQuota(tgUser.getSurplusQuota() - 1);
-        LoginHelper.setLoginUser(loginUser);
-        long sshPort = superLxc.getSshPortStart() + portIndex;
+            LxcUser tgUser = loginUser.getLxcUser();
+            tgUser.setSurplusQuota(tgUser.getSurplusQuota() - 1);
+            LoginHelper.setLoginUser(loginUser);
+            //从开始端口偏移当前小鸡索引
+            long sshPort = superLxc.getSshPortStart() + portIndex;
 
-        long netStartPort = superLxc.getNetStartPort() + (portIndex * superLxc.getNetStep());
-        LxcLxc lxc = new LxcLxc().setChildName(superLxc.getPrefix() + portIndex)
-            .setName(superLxc.getName())
-            .setTag(superLxc.getTag())
-            .setSuperIp(superLxcIp)
-            .setSshPort(String.valueOf(sshPort))
-            .setPortStart(netStartPort + "")
-            .setPortEnd(netStartPort + (superLxc.getNetStep() - 1) + "")
-            .setState(1)
-            .setLxcStatus(LxcStatus.WAITING_FOR_PROCESS.getCode());
-        try {
-            InstancesUtils.target(superLxcIp).postInstances(lxc, superLxc, lxcApplyBo);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+            long netStartPort = superLxc.getNetStartPort() + (portIndex * superLxc.getNetStep());
+
+                lxc = new LxcLxc().setChildName(superLxc.getPrefix() + portIndex)
+                    .setName(superLxc.getName())
+                    .setTag(superLxc.getTag())
+                    .setSuperIp(superLxcIp)
+                    .setSshPort(String.valueOf(sshPort))
+                    .setPortStart(netStartPort + "")
+                    .setPortEnd(netStartPort + (superLxc.getNetStep() - 1) + "")
+                    .setState(1)
+                    .setLxcStatus(LxcStatus.WAITING_FOR_PROCESS.getCode());
+            try {
+                InstancesUtils.target(superLxcIp).postInstances(lxc, superLxc, lxcApplyBo);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+//        }
+//            try {
+//                InstancesUtils.target(superLxcIp).postInstances(lxc, superLxc, lxcApplyBo);
+//            } catch (Exception e) {
+//                throw new RuntimeException(e);
+//            }
         lxcMapper.insert(lxc);
 
         LxcQueue queue = new LxcQueue();
@@ -295,6 +380,13 @@ public class LxcQueueServiceImpl extends BaseService<LxcQueueMapper, LxcQueue> i
         queue.setSshPort(lxc.getSshPort());
 
         baseMapper.insert(queue);
+        //将lxcApply存到redis，备用于重建，主要还是存小鸡的镜像信息
+        if(RedisUtils.getCacheObject(lxc.getId().toString()) == null) {
+            String keyOfApplyVo = String.format(CacheNames.LXC_APPLY_VO,lxc.getId());
+            RedisUtils.setCacheObject(keyOfApplyVo, lxcApplyBo);
+        }
+        String keyOfSuperLxc = String.format(CacheNames.LXC_SUPER_LXC_RESET,lxc.getId());
+        RedisUtils.setCacheObject(keyOfSuperLxc,superLxc);
         return null;
     }
 
@@ -339,7 +431,28 @@ public class LxcQueueServiceImpl extends BaseService<LxcQueueMapper, LxcQueue> i
         lxcSuperLxcVo.setSshPort("test");
         BeanCopyUtils.copy(lxcSuperLxcVo, copy);
         System.out.println(copy);*/
-        System.out.println(findFirstDiscontinuous(Arrays.asList(1, 2, 3, 5)));
+//        System.out.println(findFirstDiscontinuous(Arrays.asList(2, 3)));
+//*************************************************************************************
+//        LxcSuperLxc superLxc = new LxcSuperLxc();
+//        String superLxcIp = superLxc.getIp();
+//        BackgroundOperationResponse allInstancesBase = getAllInstancesBase(superLxcIp);
+//        Object metadata = allInstancesBase.getMetadata();
+//        // 转为string list
+//        List<String> instancesList = JSONUtil.parseArray(JSONUtil.toJsonStr(metadata)).toList(String.class);
+//        //获取去掉前缀的小鸡名称序号列表
+//        List<Integer> collect = instancesList.stream()
+//            .map(o -> {
+//                try {
+//                    //小鸡名称分割出前缀和序号，如te1分为te 和 1
+//                    return Integer.parseInt(o.split(superLxc.getPrefix())[1]);
+//                } catch (Exception e) {
+//                    return 0;
+//                }
+//            })
+//            .filter(o -> o != 0)
+//            .distinct()
+//            .sorted()
+//            .collect(Collectors.toList());
     }
 
     /**

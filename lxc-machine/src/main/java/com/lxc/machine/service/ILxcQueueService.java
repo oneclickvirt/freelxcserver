@@ -56,6 +56,7 @@ public interface ILxcQueueService extends IBaseService<LxcQueue> {
 
     R<Object> addUserLxc(LxcQueueBo queueDto,LoginUser loginUser);
 
+//    R<Object> applyLxc(LxcSuperLxc superLxc, LoginUser loginUser, LxcApplyBo lxcApplyBo);
 
     R<Object> applyLxc(LxcSuperLxc superLxc, LoginUser loginUser, LxcApplyBo lxcApplyBo);
 

@@ -191,7 +191,7 @@ public class LxcLxcServiceImpl extends BaseService<LxcLxcMapper, LxcLxc> impleme
             try {
                 ShellUtils.execCmdOutList(String.format("lxc stop %1$s && lxc delete %1$s", lxcLxc.getChildName())
                     , "root", lxcSuperLxc.getPassword(), lxcSuperLxc.getIp(), 22);
-                ShellUtils.execCmdOutList(String.format("rm -rf %1$s*", lxcLxc.getChildName())
+                ShellUtils.execCmdOutList(String.format("rm -rf %1$s %1$s_init.log", lxcLxc.getChildName())
                     , "root", lxcSuperLxc.getPassword(), lxcSuperLxc.getIp(), 22);
             } catch (Exception e) {
                 throw new RuntimeException(e);

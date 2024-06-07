@@ -29,7 +29,8 @@ public class InstancesApi {
     }
 
     public InstancesApi of(String ip) {
-        String baseUrl = "https://" + ip + ":9969";
+//        String baseUrl = "https://" + ip + ":9969";
+        String baseUrl = "https://" + ip + ":8443";
         localVarApiClient.setBasePath(baseUrl);
         return this;
     }

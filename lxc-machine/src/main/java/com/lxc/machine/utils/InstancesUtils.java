@@ -1,6 +1,8 @@
 package com.lxc.machine.utils;
 
+import com.lxc.common.core.domain.dto.ShellDto;
 import com.lxc.common.utils.JsonUtils;
+import com.lxc.common.utils.ShellUtils;
 import com.lxc.common.utils.StringUtils;
 import com.lxc.machine.domain.LxcLxc;
 import com.lxc.machine.domain.LxcSuperLxc;
@@ -8,6 +10,7 @@ import com.lxc.machine.domain.bo.LxcApplyBo;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.relxd.lxd.ApiException;
 import org.relxd.lxd.RelxdApiClient;
 import org.relxd.lxd.api.InstancesApi;
 import org.relxd.lxd.builders.InstanceConfigBuilder;
@@ -32,7 +35,8 @@ public class InstancesUtils {
 
     public static InstancesUtils target(String ip) {
         assert ip != null;
-        String baseUrl = "https://" + ip + ":9969";
+//        String baseUrl = "https://" + ip + ":9969";
+        String baseUrl = "https://" + ip + ":8443";
         return new InstancesUtils(new InstancesApi(new RelxdApiClient(baseUrl)));
     }
 
@@ -65,9 +69,22 @@ public class InstancesUtils {
 
         CreateInstancesRequest createInstancesRequest = populateCreateInstancesRequest(devicesRoot, sourceConfigBuilder.asMap(), type, profiles, architecture, nameOfContainer, configBuilder.asMap(), false);
 
-        BackgroundOperationResponse actualCreateInstancesResponse = this.instancesApi.postInstances(target, createInstancesRequest);
-        log.info("Create Instance Response >>>>>>>>>> " + actualCreateInstancesResponse);
-        assertTrue((Objects.equals(actualCreateInstancesResponse.getStatusCode(), 200)) || Objects.equals(actualCreateInstancesResponse.getStatusCode(), 100));
+//        BackgroundOperationResponse actualCreateInstancesResponse = this.instancesApi.postInstances(target, createInstancesRequest);
+
+        try {
+            BackgroundOperationResponse actualCreateInstancesResponse = this.instancesApi.postInstances(target, createInstancesRequest);
+            log.info("Create Instance Response >>>>>>>>>> " + actualCreateInstancesResponse);
+            assertTrue((Objects.equals(actualCreateInstancesResponse.getStatusCode(), 200)) || Objects.equals(actualCreateInstancesResponse.getStatusCode(), 100));
+
+        } catch (ApiException e) {
+            log.error("LXD API Exception: " + e.getMessage());
+            log.error("HTTP Status Code: " + e.getCode());
+            log.error("Response Body: " + e.getResponseBody());
+            throw new RuntimeException(e);
+        }
+
+//        log.info("Create Instance Response >>>>>>>>>> " + actualCreateInstancesResponse);
+//        assertTrue((Objects.equals(actualCreateInstancesResponse.getStatusCode(), 200)) || Objects.equals(actualCreateInstancesResponse.getStatusCode(), 100));
     }
 
     /**
@@ -100,6 +117,7 @@ public class InstancesUtils {
 
     /**
      * 封装RootLimit
+     * 母鸡硬件配置
      */
     public static RootLimit prepareRootLimit(LxcSuperLxc superLxc) {
         RootLimit rootLimit = JsonUtils.parseObject(superLxc.getRootLimits(), RootLimit.class);

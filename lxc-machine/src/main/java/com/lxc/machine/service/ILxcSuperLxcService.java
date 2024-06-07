@@ -69,4 +69,11 @@ public interface ILxcSuperLxcService extends IBaseService<LxcSuperLxc> {
      * 根据角色查询小鸡信息列表
      */
     List<LxcCartVo> getSuperListWithRoles(@Param("sysRoles") List<RoleDTO> sysRoles);
+
+    /**
+     * 根据母鸡ip查询密码
+     * @param superIp
+     * @return
+     */
+    LxcSuperLxcVo queryByIp(String superIp);
 }

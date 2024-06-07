@@ -164,6 +164,11 @@ public class LxcSuperLxcServiceImpl extends BaseService<LxcSuperLxcMapper, LxcSu
             //TODO 做一些业务上的校验,判断是否需要校验
         }
         ids.forEach(id -> {
+            //删除用于重建时传入的母鸡信息
+            String keyOfSuperLxc = String.format(CacheNames.LXC_SUPER_LXC_RESET, id);
+            if((RedisUtils.getCacheObject(keyOfSuperLxc)) != null)
+                RedisUtils.deleteObject(keyOfSuperLxc);
+
             LxcSuperLxc lxcSuperLxc = baseMapper.selectById(id);
             String superLxcIp = lxcSuperLxc.getIp();
             sysLxcRoleService.deleteBySuperIp(superLxcIp);
@@ -234,6 +239,14 @@ public class LxcSuperLxcServiceImpl extends BaseService<LxcSuperLxcMapper, LxcSu
     public List<LxcCartVo> getSuperListWithRoles(List<RoleDTO> sysRoles) {
         List<LxcSuperLxc> superListWithRoles = baseMapper.getSuperListWithRoles(sysRoles);
         return BeanCopyUtils.copyList(superListWithRoles,LxcCartVo.class);
+    }
+
+    @Override
+    public LxcSuperLxcVo queryByIp(String superIp) {
+//        QueryWrapper<String> wrapper = new QueryWrapper<>();
+//        wrapper.eq("ip",superIp);
+        return baseMapper.queryByIp(superIp);
+
     }
 
 }

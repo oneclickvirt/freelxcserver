@@ -1,5 +1,6 @@
 package com.lxc.machine.job;
 
+import cn.dev33.satoken.annotation.SaIgnore;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.lxc.common.constant.LxcConstants;
@@ -20,14 +21,23 @@ import com.lxc.machine.service.impl.LxcQueueServiceImpl;
 import com.xxl.job.core.context.XxlJobHelper;
 import com.xxl.job.core.handler.annotation.XxlJob;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.junit.Test;
 import org.relxd.lxd.ApiException;
 import org.relxd.lxd.api.InstancesApi;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 
-import java.util.List;
-import java.util.Objects;
+import javax.servlet.http.HttpServletResponse;
+import java.util.*;
+import java.util.function.Consumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+
+import static com.lxc.common.utils.ShellUtils.NET_USED;
 
 @RequiredArgsConstructor
 @Service
@@ -180,6 +190,7 @@ public class LxcJobService {
                         .build();
                     String createCommand = String.format(ShellUtils.IF_PASSWD_FILE_EXIST, childName);
                     String hostInterfaceCommand = String.format(ShellUtils.GET_LXC_INTERFACE, childName);
+                    // 判断小鸡容器和日志文件是否创建，如果存在，会返回true和小鸡密码
                     List<String> out = ShellUtils.execCmdOutList(createCommand, ShellUtils.getSession(shellDto));
                     if (out.size() == 2 && StringUtils.equals(out.get(0), "true")) {
                         LxcLxcBo temp = new LxcLxcBo();
@@ -270,4 +281,168 @@ public class LxcJobService {
             }
         });
     }
+
+    /**
+     * 每月重置流量超限的小鸡
+     */
+    @XxlJob("resetNetExceedLxc")
+    public void resetNetExceedLxc(){
+
+    }
+
+
+    /**
+     * 检查实例使用的网络流量是否超过限量
+     */
+    @XxlJob("checkAndSetNetExceed")
+    public void checkAndSetNetExceed(){
+        //对母鸡操作，在后台调出每只小鸡的名称和ip？然后注意获取网络流量，判断是否超过
+        //阈值
+        List<LxcLxcVo> lxcRunningList = lxcService.getLxcAndQueueList(
+            LxcStatus.RUNNING.getCode()
+        );
+
+//        int cnt = 1;
+        if(lxcRunningList.size() == 0){
+            XxlJobHelper.log("--------此时没有已开机的小鸡--------");
+        }else{
+            for (LxcLxcVo lxcLxcVo : lxcRunningList) {
+//                System.out.println("第" + cnt + "个小鸡对象:" + lxcLxcVo);
+
+                String childName = lxcLxcVo.getChildName();
+                String superIp = lxcLxcVo.getSuperIp();//这里可能为null
+                LxcSuperLxcVo superLxc = lxcSuperLxcService.queryByIp(superIp);
+//                System.out.println("第" + cnt + "个母鸡对象:" + superLxc);
+//                cnt++;
+                // 通过母鸡ip和小鸡名称获取小鸡ip
+                String getIpCommand = String.format(ShellUtils.GET_LXC_IP, childName);
+
+                List<String> childIpList = new ArrayList<>();
+                String childIp = "";
+                try {
+                    childIpList = ShellUtils.execCmdOutList(getIpCommand,"root",superLxc.getPassword(),superIp,Integer.valueOf(superLxc.getSshPort()));
+                    childIp = childIp + childIpList.get(0);// 字符串拼接，拼接小鸡ip地址
+                    XxlJobHelper.log("正在监测流量使用的小鸡ip为：{}",childIp);
+                } catch (Exception e) {
+                    XxlJobHelper.log("--------获取活动的小鸡ip失败--------");
+                    e.printStackTrace();
+                }
+                // 小鸡的ip是动态变化的
+                Integer sshPort = Integer.valueOf(superLxc.getSshPort());
+//                    String username = lxcLxcVo.();
+                String lxcPassword = lxcLxcVo.getPassword();
+//                    String modifyType = sshDto.getModifyType();
+
+                String result = "";
+                String command = String.format(NET_USED,childName);
+                try {
+                    List<String> list = ShellUtils.execCmdOutList(
+                        // 连接母鸡执行lxc info <container>命令
+                        command,
+                        "root",
+                        superLxc.getPassword(), superIp,
+                        Optional.ofNullable(sshPort).orElse(22)
+                    );
+                    if(list == null || list.size() == 0){
+                        System.out.println("没有获取到流量使用情况");
+                    }
+                    System.out.println("该小鸡的流量使用情况为："+list);
+                    double summaryNetFlow = 0.0;
+                    String numberStr = "";
+                    String unitStr = "";
+                    for (String flow : list) {
+                            // 这里没考虑发送和接收的流量单位不同的情况，可能要加个化单位步骤
+                            numberStr = extractNumber(flow);
+                            unitStr = extractUnit(flow);
+                            // 将kB和B化为MB
+                            double flow2MB = unitUnify(numberStr,unitStr);
+                            summaryNetFlow += flow2MB;
+                            // 限制每月小鸡流量为LXC_NETSTREAM_LIMIT(MB)，将小鸡状态修改为"流量超限"，另外要有一个每个月开始将小鸡状态恢复
+                            try {
+                                if(summaryNetFlow >= LxcConstants.LXC_NETSTREAM_LIMIT){
+                                    // 网络流量超过限制
+                                    lxcLxcVo.setLxcStatus(LxcStatus.TRAFFIC_LIMIT.getCode());
+                                    // 小鸡关机且不能让前端的开机操作响应
+                                    
+                                }
+                            } catch (NumberFormatException e) {
+                                System.err.println("Error parsing number: " + numberStr);
+                            }
+                    }
+                    System.out.println("小鸡 " + childIp + " 目前用了" + summaryNetFlow + unitStr + "流量");
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+    }
+
+    private double unitUnify(String numberStr,String unitStr) {
+        // 将浮点数字符串解析为浮点数
+        double flowNum = Double.parseDouble(numberStr);
+        // 将kB和B的单位化成MB
+        if("kB".equals(unitStr)){
+            flowNum /= 1024;
+        }else if("B".equals(unitStr)){
+            flowNum /= (1024*1024);
+        }
+        return flowNum;
+    }
+
+    /**
+     * 正则表达式提取浮点数
+     * @param input
+     * @return
+     */
+    public static String extractNumber(String input) {
+        // 定义一个正则表达式来匹配浮点数部分
+        String numberRegex = "[+-]?([0-9]*[.])?[0-9]+";
+        Pattern pattern = Pattern.compile(numberRegex);
+        Matcher matcher = pattern.matcher(input);
+
+        if (matcher.find()) {
+            return matcher.group();
+        } else {
+            return null; // 或者返回一个默认值，取决于你的需求
+        }
+    }
+
+    /**
+     * 正则表达式提取字符串
+     * @param input
+     * @return
+     */
+    public static String extractUnit(String input) {
+        // 定义一个正则表达式来匹配单位部分
+        String unitRegex = "[a-zA-Z]+";
+        Pattern pattern = Pattern.compile(unitRegex);
+        Matcher matcher = pattern.matcher(input);
+
+        if (matcher.find()) {
+            return matcher.group();
+        } else {
+            return null; // 或者返回一个默认值，取决于你的需求
+        }
+    }
+
+
+    @Test
+    public void test() throws Exception {
+        List<String> list = null;
+
+        String command = String.format(NET_USED,"FourthTest4");
+        list = ShellUtils.execCmdOutList(
+            command,
+            "root",
+            "e41f39a12", "185.206.69.5",
+            22
+        );
+        for (String s : list) {
+            System.out.println(s);
+        }
+    }
+
 }
+
+

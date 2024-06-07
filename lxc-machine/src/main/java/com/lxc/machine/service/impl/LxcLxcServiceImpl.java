@@ -2,6 +2,7 @@ package com.lxc.machine.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.extra.ssh.JschUtil;
+import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
@@ -18,23 +19,24 @@ import com.lxc.common.utils.StringUtils;
 import com.lxc.common.utils.redis.RedisUtils;
 import com.lxc.framework.service.BaseService;
 import com.lxc.machine.domain.LxcLxc;
+import com.lxc.machine.domain.LxcQueue;
 import com.lxc.machine.domain.LxcSuperLxc;
 import com.lxc.machine.domain.bo.LxcLxcBo;
 import com.lxc.machine.domain.vo.LxcLxcVo;
+import com.lxc.machine.domain.vo.LxcQueueVo;
 import com.lxc.machine.mapper.LxcLxcMapper;
+import com.lxc.machine.mapper.LxcQueueMapper;
 import com.lxc.machine.mapper.SysLxcRoleMapper;
 import com.lxc.machine.service.ILxcLxcService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
@@ -50,6 +52,7 @@ public class LxcLxcServiceImpl extends BaseService<LxcLxcMapper, LxcLxc> impleme
 
     private final SysLxcRoleMapper sysLxcRoleMapper;
     private final LxcLxcMapper baseMapper;
+    private final LxcQueueMapper lxcQueueMapper;
 
     @Lazy
     @Autowired
@@ -91,6 +94,29 @@ public class LxcLxcServiceImpl extends BaseService<LxcLxcMapper, LxcLxc> impleme
     @Override
     public List<LxcLxcVo> getLxcList(QueryWrapper<LxcLxc> queryWrapper) {
         return baseMapper.selectVoList(queryWrapper);
+    }
+
+    @Override
+    public List<LxcLxcVo> getLxcAndQueueList(String lxcStatus) {
+        // 查询指定状态的小鸡
+        List<LxcLxcVo> lxcLxcVoList = new ArrayList<>();
+        List<LxcLxc> lxcList = baseMapper.selectLxcListByStatus(lxcStatus);
+//        List<LxcQueue> queueList = null;
+        int cnt = 1;
+
+        for (LxcLxc lxc : lxcList) {
+            LxcLxcVo lxcVo = new LxcLxcVo();
+            Long lxcId = lxc.getId();
+            LxcQueue queueOne = lxcQueueMapper.selectQueueByLxcId(lxcId);// 返回一个队列queue
+            BeanUtils.copyProperties(lxc,lxcVo);
+            lxcVo.setLxcQueue(queueOne);
+//            System.out.println("第" + cnt++ + "个小鸡对象:" + lxcVo);
+            lxcLxcVoList.add(lxcVo);
+        }
+
+//        List<LxcLxcVo> lxcLxcVoList = baseMapper.selectVoLxcByStatus(lxcStatus);
+//        LxcQueueVo lxcQueueVo = lxcQueueMapper.selectVoById()
+        return lxcLxcVoList;
     }
 
     /**
@@ -180,6 +206,11 @@ public class LxcLxcServiceImpl extends BaseService<LxcLxcMapper, LxcLxc> impleme
         ids.forEach(id -> {
             LxcLxc lxcLxc = baseMapper.selectById(id);
             lxcQueueService.delForceByLxcId(id);
+            //删掉缓存中创建小鸡时的applyVo信息
+            String keyOfApplyVo = String.format(CacheNames.LXC_APPLY_VO, id);
+            if((RedisUtils.getCacheObject(keyOfApplyVo)) != null)
+                RedisUtils.deleteObject(keyOfApplyVo);
+
             String superIp = lxcLxc.getSuperIp();
             if (!superMap.containsKey(superIp)) {
                 LambdaQueryWrapper<LxcSuperLxc> eq = Wrappers.lambdaQuery();
@@ -201,6 +232,48 @@ public class LxcLxcServiceImpl extends BaseService<LxcLxcMapper, LxcLxc> impleme
         superMap.forEach((k, v) -> {
             lxcSuperLxcService.setFreshCache(v);
         });
+
+        return i > 0;
+    }
+
+    /**
+     * 重建时中途删除小鸡，不删缓存信息
+     * @param ids
+     * @param isValid
+     * @return
+     */
+    @Override
+    public Boolean deleteWithValidByIdsInReset(Collection<Long> ids, Boolean isValid) {
+        if (isValid) {
+            //TODO 做一些业务上的校验,判断是否需要校验
+        }
+        Map<String, LxcSuperLxc> superMap = new HashMap<>();
+        ids.forEach(id -> {
+            LxcLxc lxcLxc = baseMapper.selectById(id);
+            lxcQueueService.delForceByLxcId(id);
+
+            String superIp = lxcLxc.getSuperIp();
+            if (!superMap.containsKey(superIp)) {
+                LambdaQueryWrapper<LxcSuperLxc> eq = Wrappers.lambdaQuery();
+                eq.eq(LxcSuperLxc::getIp, superIp);
+                LxcSuperLxc lxcSuperLxc = lxcSuperLxcService.getOne(eq);
+                superMap.put(lxcSuperLxc.getIp(), lxcSuperLxc);
+            }
+            LxcSuperLxc lxcSuperLxc = superMap.get(superIp);
+            try {
+                ShellUtils.execCmdOutList(String.format("lxc stop %1$s && lxc delete %1$s", lxcLxc.getChildName())
+                    , "root", lxcSuperLxc.getPassword(), lxcSuperLxc.getIp(), 22);
+                ShellUtils.execCmdOutList(String.format("rm -rf %1$s %1$s_init.log", lxcLxc.getChildName())
+                    , "root", lxcSuperLxc.getPassword(), lxcSuperLxc.getIp(), 22);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+        int i = baseMapper.deleteBatchIds(ids);
+        superMap.forEach((k, v) -> {
+            lxcSuperLxcService.setFreshCache(v);
+        });
+
         return i > 0;
     }
 

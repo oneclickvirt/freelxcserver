@@ -174,7 +174,6 @@ public class LxcQueueController extends BaseController {
 
         if (!BotUtils.isMember(LxcConstants.CHAT_ID, Long.valueOf(tgId))) {
 //            return R.fail(1403);  TODO 改了验证
-//            return R.success("申请成功");
         }
 
         long count = lxcUserService.count(new QueryWrapper<LxcUser>().eq("tg_id", tgId));
@@ -255,6 +254,43 @@ public class LxcQueueController extends BaseController {
         return R.ok("获取成功", queueList);
     }
 
+    @SaCheckPermission("lxc:lxc:all")
+    @PostMapping("/resetLxc/{childName}")
+    public R resetUserLxcByName(@PathVariable String childName) {
+        log.info("用户{}重建小鸡",childName);
+        LoginUser loginUser = this.getLoginUser();
+        String tgId = loginUser.getTgId();
+
+        if (!BotUtils.isMember(LxcConstants.CHAT_ID, Long.valueOf(tgId))) {
+//            return R.fail(1403);  TODO 改了验证
+        }
+
+        long count = lxcUserService.count(new QueryWrapper<LxcUser>().eq("tg_id", tgId));
+        if (count <= 0) {
+            return R.fail("用户信息不存在");
+        }
+
+//        QueryWrapper<LxcQueue> lxcQueueQueryWrapper = new QueryWrapper<>();
+//        lxcQueueQueryWrapper.eq("tg_id",tgId);
+//
+//
+//        QueryWrapper<LxcLxc> lxcQueryWrapper = new QueryWrapper<>();
+//        lxcQueryWrapper.eq("child_name",childName);
+//        LxcLxcVo lxcLxcVo = lxcMapper.selectVoOne(lxcQueryWrapper);
+
+        LxcLxcVo lxcLxcVo = lxcMapper.selectVoLxc(tgId,childName);
+
+        LxcLxcBo lxcLxcBo = new LxcLxcBo();
+        BeanUtils.copyProperties(lxcLxcVo,lxcLxcBo);
+        if(lxcLxcBo != null) {
+            resetUserLxcData(lxcLxcBo);
+            return R.ok("重建小鸡成功");
+        }else{
+            String boNull = String.format("获取用户%s的小鸡%s为空", tgId, childName);
+            return R.fail(boNull);
+        }
+    }
+
     /**
      * 重建小鸡
      * @param lxcDto
@@ -262,13 +298,16 @@ public class LxcQueueController extends BaseController {
      */
     // TODO
     @SaCheckPermission("lxc:lxc:all")
-    @PostMapping("/resetLxc")
     @Transactional
     public R resetUserLxcData(@RequestBody @Valid LxcLxcBo lxcDto) {
         //先查找出选定的小鸡的信息(/lxc/userLxcData)，先存为变量VO，然后删除原小鸡(LxcLxcService有删除指定id的小鸡方法)，再用原有信息重新创建
         //getLxcData
         LoginUser loginUser = this.getLoginUser();
         String tgId = loginUser.getTgId();
+
+        //TODO 添加校验重建的用户是否为创建的用户
+
+
         QueryWrapper<LxcQueue> query = new QueryWrapper<>();
         query.eq("lxc_id", lxcDto.getId());
         //查询小鸡队列,queueVo只查找一个VO对象
@@ -276,6 +315,7 @@ public class LxcQueueController extends BaseController {
         if (queueVo == null) {
             return R.fail(1005);
         }
+        //校验了tgid是否为创建小鸡的用户的id
         if (!tgId.equals(queueVo.getTgId())) {
             return R.fail(1004);
         }
@@ -285,30 +325,25 @@ public class LxcQueueController extends BaseController {
         BeanUtils.copyProperties(lxcVo,lxc);
 
         lxc.setLxcStatus(LxcStatus.WAITING_FOR_PROCESS.getCode());
-        String keyOfLxc = String.format(CacheNames.LXC_LXC_RESET, lxc.getId());
-        RedisUtils.setCacheObject(keyOfLxc,lxc);
+//        String keyOfLxc = String.format(CacheNames.LXC_LXC_RESET, lxc.getId());
+//        RedisUtils.setCacheObject(keyOfLxc,lxc);
 
         queueVo.setPortStart(lxc.getPortStart());
         queueVo.setPortEnd(lxc.getPortEnd());
         queueVo.setPassword(lxc.getPassword());
         queueVo.setIpv6Addr(lxc.getIpv6Addr());
-        String keyOfQueue = String.format(CacheNames.LXC_QUEUE_RESET, lxc.getId());
-        RedisUtils.setCacheObject(keyOfQueue,queueVo);
+//        String keyOfQueue = String.format(CacheNames.LXC_QUEUE_RESET, lxc.getId());
+//        RedisUtils.setCacheObject(keyOfQueue,queueVo);
         log.info(">>>>>>>>>>>>>>>>>lxc:{}",lxc);
         log.info(">>>>>>>>>>>>>>>>>queue:{}",queueVo);
-//        QueryWrapper<LxcSuperLxc> queryWrapper = new QueryWrapper<>();
-//        //.select里的是查询后显示控制台能看到的内容
-//        queryWrapper.select("password").
-//            eq("ip", lxc.getSuperIp())
-//            .last("limit 1");
-////        LxcSuperLxcVo superLxc = superLxcMapper.selectVoOne(queryWrapper);
-//        LxcSuperLxc superLxc = superLxcMapper.selectOne(queryWrapper);
+
         String keyOfSuperLxc = String.format(CacheNames.LXC_SUPER_LXC_RESET, lxc.getId());
         LxcSuperLxc superLxc = RedisUtils.getCacheObject(keyOfSuperLxc);
         log.info("小鸡重建前信息获取成功:{}",queueVo);
 
+
 //        lxcQueueService.deleteWithValidByIds(Arrays.asList(queue.getId()),true);
-        Boolean aBoolean = lxcLxcService.deleteWithValidByIds(Arrays.asList(lxc.getId()), true);
+        Boolean aBoolean = lxcLxcService.deleteWithValidByIdsInReset(Arrays.asList(lxc.getId()), true);
         if(aBoolean)
             log.info("已删除小鸡信息:{}",lxc.getId());
         else
@@ -336,9 +371,9 @@ public class LxcQueueController extends BaseController {
         //删除lxc和queue缓存
 //        RedisUtils.deleteObject(keyOfApplyVo);
 //        RedisUtils.deleteObject(keyOfSuperLxc);
-        RedisUtils.deleteObject(keyOfLxc);
-        RedisUtils.deleteObject(keyOfQueue);
-        return R.ok("重建小鸡成功");
+//        RedisUtils.deleteObject(keyOfLxc);
+//        RedisUtils.deleteObject(keyOfQueue);
+        return R.ok();
     }
 
     @RateLimiter(count = 2, time = 20, limitType = LimitType.IP)

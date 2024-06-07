@@ -10,6 +10,11 @@ public interface LxcConstants {
     String CHAT_ID = "-1001474554890";
 
     /**
+     * 小鸡流量限制MB
+     */
+    Integer LXC_NETSTREAM_LIMIT = 500;
+
+    /**
      * 可开小鸡禁用标识
      */
     String LXC_SUPER_DISABLED = "0";

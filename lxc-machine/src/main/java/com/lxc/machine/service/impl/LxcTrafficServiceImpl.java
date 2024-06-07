@@ -61,6 +61,7 @@ public class LxcTrafficServiceImpl extends BaseService<LxcTrafficMapper,LxcTraff
     private LambdaQueryWrapper<LxcTraffic> buildQueryWrapper(LxcTrafficBo bo) {
         Map<String,Object> params = bo.getParams();
         LambdaQueryWrapper<LxcTraffic> lqw = Wrappers.lambdaQuery();
+        //非空判断+字段eq对象值
         lqw.eq(StringUtils.isNotBlank(bo.getReceived()),LxcTraffic::getReceived,bo.getReceived());
         lqw.eq(StringUtils.isNotBlank(bo.getSent()),LxcTraffic::getSent,bo.getSent());
         return lqw;
@@ -75,6 +76,7 @@ public class LxcTrafficServiceImpl extends BaseService<LxcTrafficMapper,LxcTraff
         validEntityBeforeSave(add);
         boolean flag = baseMapper.insert(add) > 0;
         if (flag) {
+
             bo.setLxcId(add.getLxcId());
         }
         return flag;

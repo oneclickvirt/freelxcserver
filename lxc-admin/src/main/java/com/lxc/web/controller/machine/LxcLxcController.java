@@ -45,6 +45,7 @@ import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
+import javax.ws.rs.PathParam;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
@@ -159,7 +160,7 @@ public class LxcLxcController extends BaseController {
                 .eq("lxc_id", lxcLxcVo.getId())
                 .last("limit 1");
             LxcQueueVo queue = queueMapper.selectVoOne(queryWrapper);
-            lxcLxcVo.setLxcQueue(queue);
+            lxcLxcVo.setLxcQueueVo(queue);
         });
         return pageList;
     }
@@ -302,6 +303,8 @@ public class LxcLxcController extends BaseController {
         return toAjax(lxcLxcService.deleteWithValidByIds(Arrays.asList(ids), true) ? 1 : 0);
     }
 
+
+
     /**
      * 获取实例的网络流量图
      *
@@ -340,5 +343,7 @@ public class LxcLxcController extends BaseController {
             return null;
         });
     }
+
+
 
 }

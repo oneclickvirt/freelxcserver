@@ -44,6 +44,13 @@ public interface ILxcLxcService extends IBaseService<LxcLxc> {
     List<LxcLxcVo> getLxcList(QueryWrapper<LxcLxc> queryWrapper);
 
     /**
+     * 查询小鸡及其队列信息列表
+     * @param lxcStatus
+     * @return
+     */
+    List<LxcLxcVo> getLxcAndQueueList(String lxcStatus);
+
+    /**
      * 根据角色查询小鸡信息列表
      */
     List<LxcLxcVo> getLxcListWithRoles(List<RoleDTO> sysRoles);
@@ -68,6 +75,11 @@ public interface ILxcLxcService extends IBaseService<LxcLxc> {
      * 校验并批量删除小鸡信息信息
      */
     Boolean deleteWithValidByIds(Collection<Long> ids, Boolean isValid);
+
+    /**
+     * 校验并批量删除小鸡信息信息，重建小鸡时不删除缓存信息
+     */
+    Boolean deleteWithValidByIdsInReset(Collection<Long> ids, Boolean isValid);
 
     /**
      * 校验并批量删除小鸡信息信息

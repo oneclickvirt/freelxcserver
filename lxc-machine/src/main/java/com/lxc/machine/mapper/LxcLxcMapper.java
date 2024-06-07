@@ -6,6 +6,7 @@ import com.lxc.machine.domain.LxcLxc;
 import com.lxc.machine.domain.vo.LxcLxcVo;
 import java.util.List;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
 
 /**
  * 小鸡信息Mapper接口
@@ -24,4 +25,24 @@ public interface LxcLxcMapper extends BaseMapperPlus<LxcLxcMapper,LxcLxc,LxcLxcV
      * 统计已使用数量
      */
     int countUsedByTgId(@Param("tgId") String tgId);
+
+    /**
+     * 根据tgId和小鸡名称查询小鸡信息
+     * @param tgId
+     * @param childName
+     * @return
+     */
+    @Select("select * from lxc_lxc lxc left join lxc_queue queue on lxc.id = queue.lxc_id where queue.tg_id=#{tgId} and lxc.child_name=#{childName}")
+    LxcLxcVo selectVoLxc(@Param("tgId") String tgId,@Param("childName") String childName);
+
+    @Select("select * from lxc_lxc lxc left join lxc_queue queue on lxc.id = queue.lxc_id where lxc_status=#{lxcStatus}")
+    List<LxcLxcVo> selectVoLxcByStatus(@Param("lxcStatus") String lxcStatus);
+
+    /**
+     * 根据status查找小鸡列表
+     * @param lxcStatus
+     * @return
+     */
+    @Select("select * from lxc_lxc lxc where lxc_status=#{lxcStatus}")
+    List<LxcLxc> selectLxcListByStatus(@Param("lxcStatus") String lxcStatus);
 }

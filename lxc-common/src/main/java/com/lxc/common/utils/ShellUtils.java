@@ -30,11 +30,12 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 @Slf4j
 public class ShellUtils {
-
+    // 获取小鸡IP
+    public static final String GET_LXC_IP = "lxc info %s | grep eth0 | head -n 1 | awk '{print $3}'";
     public static final String NET_USED = " lxc info %s | awk '/eth0:/ {flag=1;next} /lo:/ {flag=0} flag {print}'| awk '/(Bytes received:)|(Bytes sent:)/ {print $NF}'";
     //    private static final String NET_USED = "sudo lxc info %s | grep -A 3 'Network usage:' |awk '{print $NF}' | tail -n +3 | head -n 2";
     public static final String GET_LXC_STATUS = " lxc info %s |grep -i -w status |awk '{print $NF}'";
-    //查询网卡
+    // 查询网卡
     public static final String GET_LXC_INTERFACE = " lxc info %s |grep -i -w \"Host interface\" |awk '{print $NF}'";
 
     // vnstat添加网卡
@@ -57,13 +58,25 @@ public class ShellUtils {
         + "    cat /root/%1$s | awk '{print $3}' \n"
         + " fi";
 
+    //*************************************************************//
+    // 跳过判断日志文件
+    public static final String NOT_CHECK_FILE_EXIST = "";
+    //*************************************************************//
+
+
     public static final String IF_IPV6_FILE_EXIST = " if [ ! -f \"/root/%1$s_v6\" ];then\n"
         + "  echo 'false' \n"
         + "  else\n"
         + "    cat /root/%1$s_v6\n"
         + " fi";
 
-    public static final String IF_LXD_WORK = " if [ ! -f \"ps aux | grep forkexec| grep grep -v\" ];then\n"
+//    public static final String IF_LXD_WORK = " if [ ! -f \"ps aux | grep forkexec| grep grep -v\" ];then\n"
+//        + "  echo \"false\"\n"
+//        + "  else\n"
+//        + "  echo \"true\"\n"
+//        + " fi";
+
+    public static final String IF_LXD_WORK = " if [ ! \"ps aux | grep forkexec| grep grep -v\" ];then\n"
         + "  echo \"false\"\n"
         + "  else\n"
         + "  echo \"true\"\n"
@@ -144,6 +157,7 @@ public class ShellUtils {
     }
 
     /**
+     * 获取服务器使用流量情况
      * @param sshDto shell 命令
      * @throws Exception
      * @description 执行shell命令
@@ -419,7 +433,7 @@ public class ShellUtils {
         if (out.size() == 2 && StringUtils.equals(out.get(0),"true")) {
             System.out.println(out.get(1));
         }*/
-
+        JschUtil.close(session);
 
         /*ShellDto shellDto = ShellDto.builder()
                                 .ip("208.115.109.10")
@@ -648,7 +662,9 @@ public class ShellUtils {
         channel.setInputStream(null);
         channel.setErrStream(System.err);
         try (InputStream inputStream = channel.getInputStream()) {
-            channel.connect();
+//            channel.connect();
+            //设置一个长一点的连接超时时间，默认为20s
+            channel.connect(60 * 1000);//连接超时时间为60s
             byte[] bytes = IoUtil.readBytes(inputStream);
             return new ByteArrayInputStream(bytes);
         } catch (IOException | JSchException e) {

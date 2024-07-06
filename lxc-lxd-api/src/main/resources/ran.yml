@@ -1,9 +1,0 @@
-#ran:
-#  ran-value: ${random.value}
-#  ran-int: ${random.int}
-#  ran-long: ${random.long}
-#  ran-int-num: ${random.int(10)}
-#  ran-int-range: ${random.int[10,20]}
-#  ran-placeholder: placeholder_${ran.ran-value:}
-#
-

@@ -30,13 +30,42 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 @Slf4j
 public class ShellUtils {
+
+/* 想用iptables来控制容器流量进出，但是容器重建后重设的步骤比较麻烦；另外，如下命令在宿主机上运行了貌似没有在容器上得到正确的反映
+    // 流量控制 %s表示的内容
+    // $INTERFACE
+    // $INTERFACE
+    // $INTERFACE $DOWNLOAD_LIMIT
+    // $INTERFACE $UPLOAD_LIMIT $DOWNLOAD_LIMIT
+    // $INTERFACE
+    // $INTERFACE $QUOTA
+    // $INTERFACE
+    public static final String TRAFFIC_CONTROL = " tc qdisc del dev %s root &&\n" +
+        " tc qdisc add dev %s root handle 1: htb default 11 &&\n" +
+        " tc class add dev %s parent 1: classid 1:1 htb rate %s &&\n" +
+        " tc class add dev %s parent 1:1 classid 1:11 htb rate %s ceil %s &&\n" +
+        " tc filter add dev %s protocol ip parent 1:0 prio 1 u32 match ip dst 0.0.0.0/0 flowid 1:1 &&" +
+        " iptables -A INPUT -i %s -m quota --quota %s -j ACCEPT &&\n" +
+        " iptables -A INPUT -i %s -j DROP";
+    // 小鸡流量限额设置 $INTERFACE $QUOTA $INTERFACE
+    public static final String QUOTA_SETTING = " iptables -A INPUT -i %s -m quota --quota %s -j ACCEPT &&\n" +
+        " iptables -A INPUT -i %s -j DROP";
+    // 防止和允许ip规则修改
+    public static final String PROTECT_IPTABLES = " chattr +i /etc/iptables/rules.v4 &&"+
+        " chattr +i /etc/iptables/rules.v6";
+    public static final String RELEASE_IPTABLES = " chattr -i /etc/iptables/rules.v4 &&"+
+        " chattr -i /etc/iptables/rules.v6";
+*/
+
     // 获取小鸡IP
-    public static final String GET_LXC_IP = "lxc info %s | grep eth0 | head -n 1 | awk '{print $3}'";
+    public static final String GET_LXC_IP = " lxc info %s | grep eth0 | head -n 1 | awk '{print $3}'";
     public static final String NET_USED = " lxc info %s | awk '/eth0:/ {flag=1;next} /lo:/ {flag=0} flag {print}'| awk '/(Bytes received:)|(Bytes sent:)/ {print $NF}'";
     //    private static final String NET_USED = "sudo lxc info %s | grep -A 3 'Network usage:' |awk '{print $NF}' | tail -n +3 | head -n 2";
     public static final String GET_LXC_STATUS = " lxc info %s |grep -i -w status |awk '{print $NF}'";
     // 查询网卡
-    public static final String GET_LXC_INTERFACE = " lxc info %s |grep -i -w \"Host interface\" |awk '{print $NF}'";
+//    public static final String GET_LXC_INTERFACE = " lxc info %s |grep -i -w \"Host interface\" |awk '{print $NF}'";
+    public static final String GET_LXC_INTERFACE = " lxc info %s |grep -i -w \"Host Interface\" |awk '{print $NF}'";
+    public static final String GET_LXC_INTERFACE_BACKUP = " lxc info %s |grep -i -w \"eth0\" |awk '{print $NF}'";
 
     // vnstat添加网卡
     public static final String VNSTAT_ADD_INTERFACE = "vnstat --add  %s";
@@ -126,7 +155,7 @@ public class ShellUtils {
                     command = "start";
                     result = "开机成功";
                 } else {
-                    return "小鸡目前已经是开机状态";
+                    return "小鸡目前已经是开机状态或已流量超限";
                 }
                 break;
             case "restart":
@@ -146,6 +175,26 @@ public class ShellUtils {
                 } else {
                     return R.fail("服务器内部错误，请联系管理员");
                 }*/
+            case "traffic_limit":
+                if(nowStatus.equalsIgnoreCase("RUNNING") || nowStatus.equalsIgnoreCase("UNFROZEN")){
+                    command = "pause";
+                    result = "流量使用已达该小鸡上限";
+                }else{
+                    return "小鸡目前已是冻结状态";
+                }
+                break;
+            case "release_limit":
+                if(nowStatus.equalsIgnoreCase("FROZEN")){
+                    command = "start";
+                    result = "小鸡解除冻结状态";
+                    //iptables -A INPUT -i <container-interface> -j DROP
+                    //iptables -A OUTPUT -o <container-interface> -j DROP
+
+                }
+                else{
+                    return "小鸡已解冻";
+                }
+                break;
             default:
                 return "无效操作";
         }

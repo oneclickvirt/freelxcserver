@@ -33,6 +33,10 @@ public class LxcSuperLxc extends BaseEntity {
      */
     private String tag;
     /**
+     * 追加操作容器方式
+     */
+//    private String way;
+    /**
      * 母鸡IP
      */
     private String ip;

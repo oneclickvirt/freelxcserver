@@ -2,7 +2,6 @@ package com.lxc.machine.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.extra.ssh.JschUtil;
-import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
@@ -23,7 +22,6 @@ import com.lxc.machine.domain.LxcQueue;
 import com.lxc.machine.domain.LxcSuperLxc;
 import com.lxc.machine.domain.bo.LxcLxcBo;
 import com.lxc.machine.domain.vo.LxcLxcVo;
-import com.lxc.machine.domain.vo.LxcQueueVo;
 import com.lxc.machine.mapper.LxcLxcMapper;
 import com.lxc.machine.mapper.LxcQueueMapper;
 import com.lxc.machine.mapper.SysLxcRoleMapper;
@@ -198,6 +196,7 @@ public class LxcLxcServiceImpl extends BaseService<LxcLxcMapper, LxcLxc> impleme
      * 批量删除小鸡信息
      */
     @Override
+    @Transactional
     public Boolean deleteWithValidByIds(Collection<Long> ids, Boolean isValid) {
         if (isValid) {
             //TODO 做一些业务上的校验,判断是否需要校验
@@ -220,14 +219,20 @@ public class LxcLxcServiceImpl extends BaseService<LxcLxcMapper, LxcLxc> impleme
             }
             LxcSuperLxc lxcSuperLxc = superMap.get(superIp);
             try {
-                ShellUtils.execCmdOutList(String.format("lxc stop %1$s && lxc delete %1$s", lxcLxc.getChildName())
+                // 停机
+                ShellUtils.execCmdOutList(String.format("lxc stop %1$s", lxcLxc.getChildName())
                     , "root", lxcSuperLxc.getPassword(), lxcSuperLxc.getIp(), 22);
+                // 删容器
+                ShellUtils.execCmdOutList(String.format("lxc delete %1$s", lxcLxc.getChildName())
+                    , "root", lxcSuperLxc.getPassword(), lxcSuperLxc.getIp(), 22);
+                // 移除初始化日志文件
                 ShellUtils.execCmdOutList(String.format("rm -rf %1$s %1$s_init.log", lxcLxc.getChildName())
                     , "root", lxcSuperLxc.getPassword(), lxcSuperLxc.getIp(), 22);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
         });
+        // 删数据库记录
         int i = baseMapper.deleteBatchIds(ids);
         superMap.forEach((k, v) -> {
             lxcSuperLxcService.setFreshCache(v);
@@ -261,14 +266,21 @@ public class LxcLxcServiceImpl extends BaseService<LxcLxcMapper, LxcLxc> impleme
             }
             LxcSuperLxc lxcSuperLxc = superMap.get(superIp);
             try {
-                ShellUtils.execCmdOutList(String.format("lxc stop %1$s && lxc delete %1$s", lxcLxc.getChildName())
+//                ShellUtils.execCmdOutList(String.format("lxc stop %1$s && lxc delete %1$s", lxcLxc.getChildName())
+//                    , "root", lxcSuperLxc.getPassword(), lxcSuperLxc.getIp(), 22);
+                ShellUtils.execCmdOutList(String.format("lxc stop %1$s", lxcLxc.getChildName())
                     , "root", lxcSuperLxc.getPassword(), lxcSuperLxc.getIp(), 22);
+                // 删容器
+                ShellUtils.execCmdOutList(String.format("lxc delete %1$s", lxcLxc.getChildName())
+                    , "root", lxcSuperLxc.getPassword(), lxcSuperLxc.getIp(), 22);
+
                 ShellUtils.execCmdOutList(String.format("rm -rf %1$s %1$s_init.log", lxcLxc.getChildName())
                     , "root", lxcSuperLxc.getPassword(), lxcSuperLxc.getIp(), 22);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
         });
+        // 删lxc表记录
         int i = baseMapper.deleteBatchIds(ids);
         superMap.forEach((k, v) -> {
             lxcSuperLxcService.setFreshCache(v);
@@ -348,6 +360,16 @@ public class LxcLxcServiceImpl extends BaseService<LxcLxcMapper, LxcLxc> impleme
                 return mapper.apply(session, lxc);
             })
             .orElse(null);
+    }
+
+    /**
+     * 更改小鸡状态
+     * @param code
+     * @param id
+     */
+    @Override
+    public void updateStatus(String code, Long id) {
+        baseMapper.updateStatus(code,id);
     }
 
 }

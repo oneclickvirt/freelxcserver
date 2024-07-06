@@ -40,6 +40,12 @@ public class LxcSuperLxcVo implements Serializable {
     private String tag;
 
     /**
+     * 追加操作容器方式
+     */
+//    @ExcelProperty(value = "操作方式")
+//    private String way;
+
+    /**
      * 母鸡IP
      */
     @ExcelProperty(value = "母鸡IP")

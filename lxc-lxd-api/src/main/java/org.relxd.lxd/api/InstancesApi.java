@@ -14,23 +14,45 @@
 package org.relxd.lxd.api;
 
 import com.google.gson.reflect.TypeToken;
+//import com.lxc.common.utils.ShellUtils;
 import org.relxd.lxd.*;
 import org.relxd.lxd.model.*;
 
 import java.io.File;
 import java.lang.reflect.Type;
 import java.util.*;
+//import com.lxc.machine.service.ILxcSuperLxcService;
 
 public class InstancesApi {
     private ApiClient localVarApiClient;
+//    private final ILxcSuperLxcService lxcSuperLxcService;
 
     public InstancesApi() {
         this(Configuration.getDefaultApiClient());
     }
 
-    public InstancesApi of(String ip) {
+//    public InstancesApi of(String ip) {
+////        String baseUrl = "https://" + ip + ":9969";
+//        String baseUrl = "https://" + ip + ":8443";
+//        localVarApiClient.setBasePath(baseUrl);
+//        return this;
+//    }
+
+    // 如果8443连接不上报错换9969
+    public InstancesApi of(String ip,String port) {
 //        String baseUrl = "https://" + ip + ":9969";
-        String baseUrl = "https://" + ip + ":8443";
+//        LxcSuperLxcVo superLxc = lxcSuperLxcService.queryByIp(ip);
+        String baseUrl = "https://" + ip + ":" + port;
+//        String command1 = String.format("lsof -i:8443 | grep lxd");
+//        List<String> list = ShellUtils.execCmdOutList(command1,"root",superLxc.getPassword(),ip,Integer.valueOf(superLxc.getSshPort()));
+
+//        if(!list.isEmpty()){
+//            System.out.println(baseUrl + " without lxd service , try another port 9969");
+//            localVarApiClient.setBasePath(baseUrl);
+//        }else{
+//            baseUrl = "https://" + ip + ":9969";
+//            System.out.println("retry " + baseUrl);
+//        }
         localVarApiClient.setBasePath(baseUrl);
         return this;
     }

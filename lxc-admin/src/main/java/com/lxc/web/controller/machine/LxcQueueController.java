@@ -69,10 +69,8 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketAddress;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -320,11 +318,22 @@ public class LxcQueueController extends BaseController {
             return R.fail(1004);
         }
         //根据队列id查询小鸡信息
+        //LxcLxcVo是为了不重写queryById函数
         LxcLxcVo lxcVo = lxcLxcService.queryById(queueVo.getLxcId());
         LxcLxc lxc = new LxcLxc();
         BeanUtils.copyProperties(lxcVo,lxc);
 
+        //******获取小鸡重建前的lxcStatus，若流量超限，在重建后运行时设置回frozen******
+        String lxcStatusOrigin = lxc.getLxcStatus();
+        System.out.println("小鸡重建前状态为：" + lxcStatusOrigin);
+        /** TODO
+         * 暂时先用redis来存小鸡重建前状态
+         */
+        String keyOfLxcStatus = String.format(CacheNames.LXC_ORIGINAL_STATUS,lxc.getId());
+        RedisUtils.setCacheObject(keyOfLxcStatus,lxcStatusOrigin);
+
         lxc.setLxcStatus(LxcStatus.WAITING_FOR_PROCESS.getCode());
+
 //        String keyOfLxc = String.format(CacheNames.LXC_LXC_RESET, lxc.getId());
 //        RedisUtils.setCacheObject(keyOfLxc,lxc);
 
@@ -355,9 +364,9 @@ public class LxcQueueController extends BaseController {
 //        lxcQueueService.applyLxc(superLxc,loginUser,applyBo,true);
         log.info(">>>>>>>>>>>>>>>>>superLxc:{}",superLxc);
         String superLxcIp = superLxc.getIp();
-
+        String lxcPort = checkWhichPortForLxd(superLxcIp);
         try {
-            InstancesUtils.target(superLxcIp).postInstances(lxc, superLxc, applyBo);
+            InstancesUtils.target(superLxcIp,lxcPort).postInstances(lxc, superLxc, applyBo);
             lxc.setUpdateTime(DateUtil.parseDate(DateUtil.now()));
             lxcMapper.insert(lxc);
             LxcQueue lxcQueue = new LxcQueue();
@@ -367,6 +376,26 @@ public class LxcQueueController extends BaseController {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+        /**
+         * 创建小鸡是后台任务，这里状态修改是前台任务，修改得太早了
+         */
+        // 检查小鸡重建前是否流量超限，若超限，则小鸡状态设为frozen TODO
+/*
+        if(lxc.getLxcStatus().equals(LxcStatus.RUNNING.getCode()) && lxcStatusOrigin.equalsIgnoreCase(LxcStatus.TRAFFIC_LIMIT.getCode())){
+            try {
+                ShellUtils.execCmdAndReturnStatus(ShellDto.builder()
+                    .ip(superLxcIp)
+                    .password(superLxc.getPassword())
+                    .modifyType("traffic_limit")
+                    .childName(lxc.getChildName())
+                    .build());
+                lxcLxcService.updateStatus(LxcStatus.TRAFFIC_LIMIT.getCode(),lxc.getId());
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+*/
+
 
         //删除lxc和queue缓存
 //        RedisUtils.deleteObject(keyOfApplyVo);
@@ -375,6 +404,29 @@ public class LxcQueueController extends BaseController {
 //        RedisUtils.deleteObject(keyOfQueue);
         return R.ok();
     }
+
+    /**
+     * 获取lxc监听的端口
+     * @param superIp
+     * @return
+     */
+    public String checkWhichPortForLxd(String superIp){
+        List<String> list = new ArrayList<>();
+        LxcSuperLxcVo lxcSuperLxcVo = lxcSuperLxcService.queryByIp(superIp);
+        String command = String.format("lsof -i:8443");
+        try {
+            list = ShellUtils.execCmdOutList(command,"root",lxcSuperLxcVo.getPassword(),lxcSuperLxcVo.getIp(),Integer.valueOf(lxcSuperLxcVo.getSshPort()));
+            System.out.println(list.toString());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        if(list != null || !list.isEmpty()){
+            return "8443";
+        }else{
+            return "9969";
+        }
+    }
+
 
     @RateLimiter(count = 2, time = 20, limitType = LimitType.IP)
     @Log(title = "小鸡操作", businessType = BusinessType.OTHER)
@@ -547,6 +599,7 @@ public class LxcQueueController extends BaseController {
     }
 
     //    @SaCheckPermission("lxc:lxc:list")
+    // 查找容器创建日志
     @SaIgnore
     @GetMapping("/getInitLog/{lxcId}")
     public R<List<String>> getInitLog(@PathVariable Long lxcId) {

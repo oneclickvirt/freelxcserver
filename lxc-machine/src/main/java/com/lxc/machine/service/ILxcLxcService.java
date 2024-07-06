@@ -100,4 +100,11 @@ public interface ILxcLxcService extends IBaseService<LxcLxc> {
      * 根据lxcId获取session
      */
     <T> T getSessionByLxcId(Long lxcId, BiFunction<Session, LxcLxc, T> mapper);
+
+    /**
+     * 更改小鸡状态
+     * @param code
+     * @param id
+     */
+    void updateStatus(String code, Long id);
 }

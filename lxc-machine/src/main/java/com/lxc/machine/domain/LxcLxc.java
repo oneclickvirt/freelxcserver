@@ -26,7 +26,8 @@ public class LxcLxc extends BaseEntity {
     private static final long serialVersionUID=1L;
 
     /**
-     *
+     * @TableTd 设置type，默认为IdType.ASSIGN_ID，主键类型为number或String的雪花算法；只有当插入对象ID 为空，才自动填充
+     * 在某些情况下，我们想提前获取这个ID，调用com.baomidou.mybatisplus.core.toolkit.IdWorker.getId()方法即可
      */
     @TableId(value = "id")
     private Long id;

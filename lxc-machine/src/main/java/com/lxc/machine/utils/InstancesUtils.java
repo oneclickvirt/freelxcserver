@@ -1,8 +1,6 @@
 package com.lxc.machine.utils;
 
-import com.lxc.common.core.domain.dto.ShellDto;
 import com.lxc.common.utils.JsonUtils;
-import com.lxc.common.utils.ShellUtils;
 import com.lxc.common.utils.StringUtils;
 import com.lxc.machine.domain.LxcLxc;
 import com.lxc.machine.domain.LxcSuperLxc;
@@ -33,10 +31,10 @@ public class InstancesUtils {
     //    private final InstancesApi API = SpringUtils.getBean("lxcApi", InstancesApi.class);
     private InstancesApi instancesApi;
 
-    public static InstancesUtils target(String ip) {
+    public static InstancesUtils target(String ip,String port) {
         assert ip != null;
 //        String baseUrl = "https://" + ip + ":9969";
-        String baseUrl = "https://" + ip + ":8443";
+        String baseUrl = "https://" + ip + ":" + port;
         return new InstancesUtils(new InstancesApi(new RelxdApiClient(baseUrl)));
     }
 

@@ -7,6 +7,7 @@ import com.lxc.machine.domain.vo.LxcLxcVo;
 import java.util.List;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 /**
  * 小鸡信息Mapper接口
@@ -45,4 +46,11 @@ public interface LxcLxcMapper extends BaseMapperPlus<LxcLxcMapper,LxcLxc,LxcLxcV
      */
     @Select("select * from lxc_lxc lxc where lxc_status=#{lxcStatus}")
     List<LxcLxc> selectLxcListByStatus(@Param("lxcStatus") String lxcStatus);
+
+    /**
+     * 更新小鸡状态
+     * @param lxcStatus
+     */
+    @Update("update lxc_lxc set lxc_status=#{lxcStatus} where id=#{id}")
+    void updateStatus(@Param("lxcStatus") String lxcStatus,@Param("id") Long id);
 }

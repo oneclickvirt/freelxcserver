@@ -67,6 +67,8 @@ public class LxcSuperLxcController extends BaseController {
 
     private final ISysSuperRoleService sysSuperRoleService;
 
+
+
     /**
      * 查询母鸡信息列表
      */
@@ -102,6 +104,7 @@ public class LxcSuperLxcController extends BaseController {
                         .likeRight("name",search).or()
                         .eq("id",search);
         }
+
         return superLxcMapper.selectVoList(queryWrapper);
     }
 

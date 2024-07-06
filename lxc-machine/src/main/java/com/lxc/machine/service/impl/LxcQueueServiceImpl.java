@@ -42,7 +42,7 @@ import org.relxd.lxd.model.BackgroundOperationResponse;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -330,7 +330,8 @@ public class LxcQueueServiceImpl extends BaseService<LxcQueueMapper, LxcQueue> i
 
         BackgroundOperationResponse allInstancesBase = getAllInstancesBase(superLxcIp);
         Object metadata = allInstancesBase.getMetadata();
-        // 转为string list
+        // 将lxc list中容器(前缀+序号)中的容器名列表转为string list
+        // 删除小鸡时要注意确保把对应容器删掉，否则会影响重新创建前lxc list读取已创建小鸡列表
         List<String> instancesList = JSONUtil.parseArray(JSONUtil.toJsonStr(metadata)).toList(String.class);
         //获取去掉前缀的小鸡名称序号列表
         List<Integer> collect = instancesList.stream()
@@ -356,18 +357,20 @@ public class LxcQueueServiceImpl extends BaseService<LxcQueueMapper, LxcQueue> i
         long sshPort = superLxc.getSshPortStart() + portIndex;
 
         long netStartPort = superLxc.getNetStartPort() + (portIndex * superLxc.getNetStep());
-
-            lxc = new LxcLxc().setChildName(superLxc.getPrefix() + portIndex)
-                .setName(superLxc.getName())
-                .setTag(superLxc.getTag())
-                .setSuperIp(superLxcIp)
-                .setSshPort(String.valueOf(sshPort))
-                .setPortStart(netStartPort + "")
-                .setPortEnd(netStartPort + (superLxc.getNetStep() - 1) + "")
-                .setState(1)
-                .setLxcStatus(LxcStatus.WAITING_FOR_PROCESS.getCode());
+        // 如果前面之前的小鸡没删干净(因某些原因只删了一部分数据)，这里set入lxc中的childName就会跟实际不符，特别是重建时，前后序号会不一致
+        lxc = new LxcLxc().setChildName(superLxc.getPrefix() + portIndex)
+            .setName(superLxc.getName())
+            .setTag(superLxc.getTag())
+            .setSuperIp(superLxcIp)
+            .setSshPort(String.valueOf(sshPort))
+            .setPortStart(netStartPort + "")
+            .setPortEnd(netStartPort + (superLxc.getNetStep() - 1) + "")
+            .setState(1)
+            .setLxcStatus(LxcStatus.WAITING_FOR_PROCESS.getCode());
         try {
-            InstancesUtils.target(superLxcIp).postInstances(lxc, superLxc, lxcApplyBo);
+            String lxcPort = checkWhichPortForLxd(superLxcIp);
+            // 调用REST API执行lxd命令创建实例，重构成incus时改成okHttp来请求API
+            InstancesUtils.target(superLxcIp,lxcPort).postInstances(lxc, superLxc, lxcApplyBo);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -398,6 +401,29 @@ public class LxcQueueServiceImpl extends BaseService<LxcQueueMapper, LxcQueue> i
         RedisUtils.setCacheObject(keyOfSuperLxc,superLxc);
         return null;
     }
+
+    /**
+     * 获取lxc监听的端口
+     * @param superIp
+     * @return
+     */
+    public String checkWhichPortForLxd(String superIp){
+        List<String> list = new ArrayList<>();
+        LxcSuperLxcVo lxcSuperLxcVo = lxcSuperLxcService.queryByIp(superIp);
+        String command = String.format("lsof -i:8443");
+        try {
+            list = ShellUtils.execCmdOutList(command,"root",lxcSuperLxcVo.getPassword(),lxcSuperLxcVo.getIp(),Integer.valueOf(lxcSuperLxcVo.getSshPort()));
+            System.out.println(list.toString());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        if(list.size() == 0){
+            return "9969";
+        }else{
+            return "8443";
+        }
+    }
+
 
     public static ShellDto prepareCreateShellDto(LxcSuperLxcVo lxcSuperLxcVo, LxcLxcVo lxc) {
         return ShellDto.builder()
@@ -484,8 +510,10 @@ public class LxcQueueServiceImpl extends BaseService<LxcQueueMapper, LxcQueue> i
 
     @Override
     public BackgroundOperationResponse getAllInstancesBase(String ip) {
+        String lxcPort = checkWhichPortForLxd(ip);
         try {
-            return lxcApi.of(ip).getInstances(null, null);
+            // 目的是调用LXC的REST API创建实例
+            return lxcApi.of(ip,lxcPort).getInstances(null, null);
         } catch (ApiException e) {
             throw new RuntimeException(e);
         }

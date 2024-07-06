@@ -18,7 +18,7 @@ public class SysSuperRoleVo {
     private static final long serialVersionUID = 1L;
 
     /**
-     * 小鸡ID
+     * 母鸡ID
      */
     @ExcelProperty(value = "母鸡ID")
     private Long superId;

@@ -104,4 +104,9 @@ public interface CacheNames {
      */
     String LXC_SUPER_APPLY_LOCK = "lxc:super:apply:lock";
 
+    /**
+     * 重建前小鸡的状态
+     */
+    String LXC_ORIGINAL_STATUS = "lxc:beforeReset:%s:lxcStatus";
+
 }

@@ -99,6 +99,7 @@ public class LxcSuperLxcController extends BaseController {
     public List<LxcSuperLxcVo> listBaseInfoAll(String search) {
         QueryWrapper<LxcSuperLxc> queryWrapper = new QueryWrapper<>();
         queryWrapper.select("id","ip","tag","name");
+        // likeRight == search%，即%在匹配项右边
         if (StringUtils.isNotEmpty(search)) {
             queryWrapper.likeRight("ip",search).or()
                         .likeRight("name",search).or()

@@ -53,6 +53,12 @@ public class LxcSuperLxcBo extends BaseEntity {
     private String password;
 
     /**
+     * 母鸡操作容器方式
+     */
+//    @NotBlank(message = "母鸡操作容器不能为空", groups = { AddGroup.class, EditGroup.class })
+    private String way;
+
+    /**
      * 母鸡端口
      */
     @NotBlank(message = "母鸡端口不能为空", groups = { AddGroup.class, EditGroup.class })

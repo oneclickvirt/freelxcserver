@@ -8,6 +8,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="id" column="id"/>
         <result property="name" column="name"/>
         <result property="tag" column="tag"/>
+        <result property="way" column="way"/>
         <result property="ip" column="ip"/>
         <result property="password" column="password"/>
         <result property="sshPort" column="ssh_port"/>
@@ -35,8 +36,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </resultMap>
 
     <select id="getSuperListWithRoles" resultMap="LxcSuperLxcResult">
-        select lsl.id,lsl.name,lsl.tag,lsl.dead,lsl.disk_limit,lsl.memory_limit,lsl.ipv6_flag,lsl.source_config from
-        lxc_super_lxc lsl
+        select lsl.id,lsl.name,lsl.tag,lsl.way,lsl.dead,lsl.disk_limit,lsl.memory_limit,lsl.ipv6_flag,lsl.source_config from
+        lxc_and_incus_super_lxc lsl
         <where>
             lsl.expire_flag != '${@com.lxc.common.constant.LxcConstants@LXC_SUPER_EXPIRED}'
             and lsl.super_status != '${@com.lxc.common.constant.LxcConstants@LXC_SUPER_DISABLED}'

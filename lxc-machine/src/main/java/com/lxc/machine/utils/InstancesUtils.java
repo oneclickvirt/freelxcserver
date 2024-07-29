@@ -33,6 +33,7 @@ public class InstancesUtils {
 
     public static InstancesUtils target(String ip,String port) {
         assert ip != null;
+        // port : 8443-lxd 9969-incus
 //        String baseUrl = "https://" + ip + ":9969";
         String baseUrl = "https://" + ip + ":" + port;
         return new InstancesUtils(new InstancesApi(new RelxdApiClient(baseUrl)));

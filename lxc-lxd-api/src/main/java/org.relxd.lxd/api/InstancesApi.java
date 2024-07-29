@@ -40,19 +40,8 @@ public class InstancesApi {
 
     // 如果8443连接不上报错换9969
     public InstancesApi of(String ip,String port) {
-//        String baseUrl = "https://" + ip + ":9969";
-//        LxcSuperLxcVo superLxc = lxcSuperLxcService.queryByIp(ip);
         String baseUrl = "https://" + ip + ":" + port;
-//        String command1 = String.format("lsof -i:8443 | grep lxd");
-//        List<String> list = ShellUtils.execCmdOutList(command1,"root",superLxc.getPassword(),ip,Integer.valueOf(superLxc.getSshPort()));
 
-//        if(!list.isEmpty()){
-//            System.out.println(baseUrl + " without lxd service , try another port 9969");
-//            localVarApiClient.setBasePath(baseUrl);
-//        }else{
-//            baseUrl = "https://" + ip + ":9969";
-//            System.out.println("retry " + baseUrl);
-//        }
         localVarApiClient.setBasePath(baseUrl);
         return this;
     }

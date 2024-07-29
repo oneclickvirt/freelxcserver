@@ -8,6 +8,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.lxc.common.constant.CacheNames;
+import com.lxc.common.constant.LxcConstants;
 import com.lxc.common.core.domain.PageQuery;
 import com.lxc.common.core.domain.R;
 import com.lxc.common.core.domain.dto.ShellDto;
@@ -357,7 +358,7 @@ public class LxcQueueServiceImpl extends BaseService<LxcQueueMapper, LxcQueue> i
         long sshPort = superLxc.getSshPortStart() + portIndex;
 
         long netStartPort = superLxc.getNetStartPort() + (portIndex * superLxc.getNetStep());
-        // 如果前面之前的小鸡没删干净(因某些原因只删了一部分数据)，这里set入lxc中的childName就会跟实际不符，特别是重建时，前后序号会不一致
+        // 如果前面之前的小鸡没删干净(因某些原因只删了一部分数据)，在删除方法里加了个@Transactional注解，这里set入lxc中的childName就会跟实际不符，特别是重建时，前后序号会不一致
         lxc = new LxcLxc().setChildName(superLxc.getPrefix() + portIndex)
             .setName(superLxc.getName())
             .setTag(superLxc.getTag())
@@ -368,7 +369,9 @@ public class LxcQueueServiceImpl extends BaseService<LxcQueueMapper, LxcQueue> i
             .setState(1)
             .setLxcStatus(LxcStatus.WAITING_FOR_PROCESS.getCode());
         try {
-            String lxcPort = checkWhichPortForLxd(superLxcIp);
+//            String lxcPort = checkWhichPortForLxd(superLxcIp);
+            String way = superLxc.getWay();
+            String lxcPort = "lxd".equals(way) ? LxcConstants.LXD_PORT : LxcConstants.INCUS_PORT;
             // 调用REST API执行lxd命令创建实例，重构成incus时改成okHttp来请求API
             InstancesUtils.target(superLxcIp,lxcPort).postInstances(lxc, superLxc, lxcApplyBo);
         } catch (Exception e) {
@@ -431,6 +434,7 @@ public class LxcQueueServiceImpl extends BaseService<LxcQueueMapper, LxcQueue> i
             .sshPort(Integer.valueOf(lxcSuperLxcVo.getSshPort()))
             .username("root")
             .password(lxcSuperLxcVo.getPassword())
+            .way(lxcSuperLxcVo.getWay()) //
             .childName(lxc.getChildName())
             .memoryLimit(lxcSuperLxcVo.getMemoryLimit())
             .diskLimit(lxcSuperLxcVo.getDiskLimit())
@@ -510,7 +514,18 @@ public class LxcQueueServiceImpl extends BaseService<LxcQueueMapper, LxcQueue> i
 
     @Override
     public BackgroundOperationResponse getAllInstancesBase(String ip) {
-        String lxcPort = checkWhichPortForLxd(ip);
+//        String lxcPort = checkWhichPortForLxd(ip);
+        // 直接从数据库读取
+        QueryWrapper<LxcSuperLxc> queryWrapper = new QueryWrapper<>();
+        queryWrapper
+//            .select("way")
+            .eq("ip",ip);
+        LxcSuperLxc lxcSuperLxc = lxcSuperLxcService.getOne(queryWrapper);
+        String way = lxcSuperLxc.getWay();
+        System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>  " + way);
+//        LxcSuperLxcVo lxcSuperLxcVo = lxcSuperLxcService.queryByIp(ip);
+
+        String lxcPort = "lxd".equals(way) ? LxcConstants.LXD_PORT : LxcConstants.INCUS_PORT;
         try {
             // 目的是调用LXC的REST API创建实例
             return lxcApi.of(ip,lxcPort).getInstances(null, null);

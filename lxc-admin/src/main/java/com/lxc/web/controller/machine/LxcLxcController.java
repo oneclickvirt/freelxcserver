@@ -23,6 +23,7 @@ import com.lxc.common.utils.StringUtils;
 import com.lxc.common.utils.file.FileUtils;
 import com.lxc.common.utils.poi.ExcelUtil;
 import com.lxc.common.utils.redis.RedisUtils;
+import com.lxc.machine.domain.LxcLxc;
 import com.lxc.machine.domain.LxcQueue;
 import com.lxc.machine.domain.LxcSuperLxc;
 import com.lxc.machine.domain.bo.LxcLxcBo;
@@ -45,7 +46,6 @@ import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
-import javax.ws.rs.PathParam;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
@@ -103,7 +103,7 @@ public class LxcLxcController extends BaseController {
             return false;
         }
         QueryWrapper<LxcSuperLxc> queryWrapper = new QueryWrapper<>();
-        queryWrapper.select("password").
+        queryWrapper.select("password","way").
             eq("ip", lxcLxcVo.getSuperIp())
             .last("limit 1");
         LxcSuperLxcVo superLxc = superLxcMapper.selectVoOne(queryWrapper);
@@ -111,8 +111,16 @@ public class LxcLxcController extends BaseController {
             return false;
         }
         try {
+            String way = superLxc.getWay();
+            System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>  " + way);
+            String operWay = "";
+            if("lxd".equals(way)){
+                operWay = "lxc";
+            }else{
+                operWay = "incus";
+            }
             //对终端进行操作的命令 TODO
-            String res = ShellUtils.execCmdWithStatus(" lxc info " + lxcLxcVo.getChildName() + " |grep -i -w status |awk '{print $NF}'", "root", superLxc.getPassword(), lxcLxcVo.getSuperIp(), 22);
+            String res = ShellUtils.execCmdWithStatus(operWay + " info " + lxcLxcVo.getChildName() + " |grep -i -w status |awk '{print $NF}'", "root", superLxc.getPassword(), lxcLxcVo.getSuperIp(), 22);
             return StringUtils.equalsIgnoreCase(res, "Running");
         } catch (Exception e) {
             return false;
@@ -149,6 +157,7 @@ public class LxcLxcController extends BaseController {
 
     /**
      * 分页查询小鸡信息列表
+     * lxc和incus的小鸡放同一张lxc表和queue表
      */
     @SaCheckPermission("lxc:lxc:list")
     @GetMapping("/list")
@@ -165,6 +174,7 @@ public class LxcLxcController extends BaseController {
         return pageList;
     }
 
+    // 用户页面的小鸡展示
     @SaCheckPermission("lxc:lxc:all")
     @PostMapping("/userLxcData")
     public R getLxcData(@RequestBody @Valid LxcLxcBo lxcDto) {
@@ -188,20 +198,25 @@ public class LxcLxcController extends BaseController {
         queue.setIpv6Addr(lxc.getIpv6Addr());
         QueryWrapper<LxcSuperLxc> queryWrapper = new QueryWrapper<>();
         //.select里的是查询后显示控制台能看到的内容
-        queryWrapper.select("password").
+        queryWrapper.select("password","way").
             eq("ip", lxc.getSuperIp())
             .last("limit 1");
+        //查询的表由lxc_super_lxc改成lxc_and_incus_super_lxc
         LxcSuperLxcVo superLxc = superLxcMapper.selectVoOne(queryWrapper);
+        String way = superLxc.getWay();
+        System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>  " + way);
         //获取队列网络统计信息，通过shell获取
         queue.setNetUsage(ShellUtils.getNetUsedInfo(
             ShellDto.builder()
                 .ip(lxc.getSuperIp())
                 .password(superLxc.getPassword())
+                .way(superLxc.getWay())
                 .childName(lxc.getChildName())
                 .build()
         ));
         return R.ok("查询成功", queue);
     }
+
 
 
     /**
@@ -319,12 +334,28 @@ public class LxcLxcController extends BaseController {
         if (!userLxc) {
             throw new RuntimeException("这不是你的小鸡");
         }
+        LxcLxc lxclxc = lxcLxcService.getById(lxcId);
+        QueryWrapper<LxcSuperLxc> queryWrapper = new QueryWrapper<>();
+        queryWrapper.select("password","way").
+            eq("ip", lxclxc.getSuperIp())
+            .last("limit 1");
+        //查询的表由lxc_super_lxc改成lxc_and_incus_super_lxc
+        LxcSuperLxcVo superLxc = superLxcMapper.selectVoOne(queryWrapper);
+        String way = superLxc.getWay();
+        System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>  " + way);
         // TODO Shell
         String command = "";
+        String streamCommand = "";
+        if("incus".equals(way)){
+            streamCommand = ShellUtils.INCUS_VNSTATI_SUMMARY_STREAM;
+        }
+        if("lxd".equals(way)){
+            streamCommand = ShellUtils.VNSTATI_SUMMARY_STREAM;
+        }
         switch (type) {
             case "summary":
             default:
-                command = ShellUtils.VNSTATI_SUMMARY_STREAM;
+                command = streamCommand;
                 break;
         }
         String finalCommand = command;

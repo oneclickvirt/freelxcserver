@@ -336,10 +336,10 @@
 
 
             <!-- relxd模块 -->
-<!--            <dependency>-->
-<!--                <groupId>org.relxd</groupId>-->
-<!--                <artifactId>lxd</artifactId>-->
-<!--            </dependency>-->
+            <dependency>
+                <groupId>org.relxd</groupId>
+                <artifactId>lxd</artifactId>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 

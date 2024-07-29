@@ -8,13 +8,14 @@ import lombok.EqualsAndHashCode;
 
 /**
  * 母鸡信息对象 lxc_super_lxc
+ * 改为 lxc_and_incus_super_lxc
  *
  * @author lxc
  * @date 2022-10-11
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
-@TableName("lxc_super_lxc")
+@TableName("lxc_and_incus_super_lxc")
 public class LxcSuperLxc extends BaseEntity {
 
     private static final long serialVersionUID=1L;
@@ -35,7 +36,7 @@ public class LxcSuperLxc extends BaseEntity {
     /**
      * 追加操作容器方式
      */
-//    private String way;
+    private String way;
     /**
      * 母鸡IP
      */

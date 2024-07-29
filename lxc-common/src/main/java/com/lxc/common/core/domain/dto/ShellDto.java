@@ -11,6 +11,7 @@ public class ShellDto {
     private Integer sshPort;
     private String username;
     private String password;
+    private String way;
     private String command;
     private String result;
     private String modifyType;

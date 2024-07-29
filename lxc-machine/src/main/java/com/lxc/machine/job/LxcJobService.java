@@ -33,6 +33,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import static com.lxc.common.utils.ShellUtils.NET_INCUS_USED;
 import static com.lxc.common.utils.ShellUtils.NET_USED;
 
 @RequiredArgsConstructor
@@ -57,7 +58,7 @@ public class LxcJobService {
             .collect(Collectors.groupingBy(LxcLxcVo::getSuperIp))
             .forEach(
                 (superIp, lxcVoList) -> {
-                    // 查询创建中的小鸡
+                    // 查询创建中的小鸡，对不同的母鸡分开计算
                     long pendingCount = lxcService.count(
                         new QueryWrapper<LxcLxc>()
                             .eq("super_ip", superIp)
@@ -68,8 +69,13 @@ public class LxcJobService {
                         int size = lxcVoList.size();
                         int index = -1;
                         for (int i = 0; i < size; i++) {
-                            String lxcPort = checkWhichPortForLxd(superIp);
+//                            String lxcPort = checkWhichPortForLxd(superIp);
+                            LxcSuperLxc superLxc = lxcSuperLxcService.getOne(new QueryWrapper<LxcSuperLxc>().select("way").eq("ip", superIp));
+                            String way = superLxc.getWay();
+                            System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>  " + way);
+                            String lxcPort = "lxd".equals(way) ? LxcConstants.LXD_PORT : LxcConstants.INCUS_PORT;
                             try {
+                                // incus和lxc只会才服务器上存在其中一个，获取小鸡实例不涉及incus或lxc的命令前缀
                                 lxcApi.of(superIp,lxcPort).getInstancesByNameState(lxcVoList.get(i).getChildName(), null, null);
                                 index = i;
                                 break;
@@ -194,6 +200,10 @@ public class LxcJobService {
             String childName = lxcVo.getChildName();
             String superIp = lxcVo.getSuperIp();//这里可能为null
             LxcSuperLxcVo superLxc = lxcSuperLxcService.queryByIp(superIp);
+
+            String way = superLxc.getWay();
+            System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>  " + way);
+
             /** TODO
              * 暂时先用redis来存小鸡重建前状态
              */
@@ -205,6 +215,7 @@ public class LxcJobService {
                         ShellUtils.execCmdAndReturnStatus(ShellDto.builder()
                             .ip(superIp)
                             .password(superLxc.getPassword())
+                            .way(superLxc.getWay())
                             .modifyType("traffic_limit")
                             .childName(childName)
                             .build());
@@ -244,14 +255,23 @@ public class LxcJobService {
                         return;
                     }
                     LxcSuperLxc superLxc = lxcSuperLxcService.getOne(new QueryWrapper<LxcSuperLxc>().eq("ip", superIp).last("LIMIT 1"));
+                    String way = superLxc.getWay();
                     ShellDto shellDto = ShellDto.builder()
                         .ip(superLxc.getIp())
                         .sshPort(Integer.valueOf(superLxc.getSshPort()))
                         .username("root")
                         .password(superLxc.getPassword())
+                        .way(way)
                         .build();
-                    String createCommand = String.format(ShellUtils.IF_PASSWD_FILE_EXIST, childName);
-                    String hostInterfaceCommand = String.format(ShellUtils.GET_LXC_INTERFACE, childName);
+                    String createCommand = String.format(ShellUtils.IF_PASSWD_FILE_EXIST, childName);;
+                    String hostInterfaceCommand = "";
+                    if("lxd".equals(way)){
+                        hostInterfaceCommand = String.format(ShellUtils.GET_LXC_INTERFACE, childName);
+                    }
+                    if("incus".equals(way)){
+                        hostInterfaceCommand = String.format(ShellUtils.GET_INCUS_INTERFACE, childName);
+                    }
+
                     // 判断小鸡容器和日志文件是否创建，如果存在，会返回true和小鸡密码
                     List<String> out = ShellUtils.execCmdOutList(createCommand, ShellUtils.getSession(shellDto));
                     // TODO
@@ -276,7 +296,12 @@ public class LxcJobService {
                         List<String> interfaceRes = ShellUtils.execCmdOutList(hostInterfaceCommand, ShellUtils.getSession(shellDto));
                         // 如果获取接口命令返回值不以"veth"开头，则换一条命令
                         if(!interfaceRes.get(0).startsWith("veth")){
-                            hostInterfaceCommand = ShellUtils.GET_LXC_INTERFACE_BACKUP;
+                            if("lxd".equals(way)){
+                                hostInterfaceCommand = ShellUtils.GET_LXC_INTERFACE_BACKUP;
+                            }
+                            if("incus".equals(way)){
+                                hostInterfaceCommand = ShellUtils.GET_INCUS_INTERFACE_BACKUP;
+                            }
                             interfaceRes = ShellUtils.execCmdOutList(hostInterfaceCommand, ShellUtils.getSession(shellDto));
                         }
 //                        if (interfaceRes.size() == 1) {
@@ -331,6 +356,7 @@ public class LxcJobService {
     @XxlJob("handleExpiredSuperLxc")
     public void handleExpiredSuperLxc() {
         List<LxcSuperLxc> expiredList = lxcSuperLxcService.list(
+            // 查询 母鸡过期时间(dead)比现在日期靠后的记录
             new QueryWrapper<LxcSuperLxc>().lt("dead", DateUtils.getDate())
                 .ne("expire_flag", LxcConstants.LXC_SUPER_EXPIRED)
         );
@@ -379,7 +405,17 @@ public class LxcJobService {
 //                System.out.println("第" + cnt + "个母鸡对象:" + superLxc);
 //                cnt++;
                 // 通过母鸡ip和小鸡名称获取小鸡ip
-                String getIpCommand = String.format(ShellUtils.GET_LXC_IP, childName);
+                String way = superLxc.getWay();
+                String getIpCommand = "";
+                String command = "";
+                if("lxd".equals(way)){
+                    getIpCommand = String.format(ShellUtils.GET_LXC_IP, childName);
+                    command = String.format(NET_USED,childName);
+                }
+                if("incus".equals(way)){
+                    getIpCommand = String.format(ShellUtils.GET_INCUS_IP,childName);
+                    command = String.format(NET_INCUS_USED,childName);
+                }
 
                 List<String> childIpList = new ArrayList<>();
                 String childIp = "";
@@ -396,7 +432,8 @@ public class LxcJobService {
                 String lxcPassword = lxcLxcVo.getPassword();
 
                 String result = "";
-                String command = String.format(NET_USED,childName);
+                // command放到上面的判断中
+//                String command = String.format(NET_USED,childName);
                 try {
                     List<String> list = ShellUtils.execCmdOutList(
                         // 连接母鸡执行lxc info <container>命令
@@ -416,9 +453,9 @@ public class LxcJobService {
                             // 这里没考虑发送和接收的流量单位不同的情况，可能要加个化单位步骤
                             numberStr = extractNumber(flow);
                             unitStr = extractUnit(flow);
-                            // 将kB和B化为MB
-                            double flow2MB = unitUnify(numberStr,unitStr);
-                            summaryNetFlow += flow2MB;
+                            // 将kB和B化为GB
+                            double flow2GB = unitUnify(numberStr,unitStr);
+                            summaryNetFlow += flow2GB;
                             // 限制每月小鸡流量为LXC_NETSTREAM_LIMIT(MB)，将小鸡状态修改为"流量超限"，另外要有一个每个月开始将小鸡状态恢复
                             try {
                                 if(summaryNetFlow >= LxcConstants.LXC_NETSTREAM_LIMIT){
@@ -426,6 +463,7 @@ public class LxcJobService {
                                     ShellUtils.execCmdAndReturnStatus(ShellDto.builder()
                                         .ip(superIp)
                                         .password(superLxc.getPassword())
+                                        .way(superLxc.getWay())
                                         .modifyType("traffic_limit")
                                         .childName(childName)
                                         .build());
@@ -448,7 +486,7 @@ public class LxcJobService {
     }
 
     /**
-     * 流量单位换算 -> MB
+     * 流量单位换算 -> GB
      * @param numberStr
      * @param unitStr
      * @return
@@ -456,11 +494,17 @@ public class LxcJobService {
     private double unitUnify(String numberStr,String unitStr) {
         // 将浮点数字符串解析为浮点数
         double flowNum = Double.parseDouble(numberStr);
-        // 将kB和B的单位化成MB
-        if("kB".equals(unitStr)){
-            flowNum /= 1024;
-        }else if("B".equals(unitStr)){
+        // 将kB、B、MB的单位化成GB
+        if("kb".equals(unitStr.toLowerCase())){
             flowNum /= (1024*1024);
+        }else if("b".equals(unitStr.toLowerCase())){
+            flowNum /= (1024*1024*1024);
+        }else if("mb".equals(unitStr.toLowerCase())){
+            flowNum /= 1024;
+        }
+        if(flowNum <= 0.001){
+            // 流量使用单位还是B或kB时，直接返回0，否则后面的小数在控制台显示出来可能很长
+            flowNum = 0;
         }
         return flowNum;
     }
@@ -483,8 +527,17 @@ public class LxcJobService {
                 String childName = lxcLxcVo.getChildName();
                 String superIp = lxcLxcVo.getSuperIp();
                 LxcSuperLxcVo superLxc = lxcSuperLxcService.queryByIp(superIp);
+
+                String way = superLxc.getWay();
                 // 通过母鸡ip和小鸡名称获取小鸡ip
-                String getIpCommand = String.format(ShellUtils.GET_LXC_IP, childName);
+                String getIpCommand = "";
+                if("lxd".equals(way)){
+                    getIpCommand = String.format(ShellUtils.GET_LXC_IP, childName);
+                }
+                if("incus".equals(way)){
+                    getIpCommand = String.format(ShellUtils.GET_INCUS_IP,childName);
+                }
+
 
                 Integer sshPort = Integer.valueOf(superLxc.getSshPort());
                 String lxcPassword = lxcLxcVo.getPassword();
@@ -499,6 +552,7 @@ public class LxcJobService {
                     ShellUtils.execCmdAndReturnStatus(ShellDto.builder()
                         .ip(superIp)
                         .password(superLxc.getPassword())
+                        .way(superLxc.getWay())
                         .modifyType("release_limit") // 重新开机
                         .childName(childName)
                         .build());

@@ -3,6 +3,8 @@ package com.lxc.common.constant;
 public interface LxcConstants {
 
 //    String BASE_URL = "https://%s:8443";
+    String LXD_PORT = "8443";
+    String INCUS_PORT = "9969";
 
     String BOOT_NAME = "lxc_testing_bot";
     String BOOT_TOKEN = "5381858832:AAG_M5zpe4qYAV0PDnPuatypmVa7Wsd4qpQ";
@@ -12,9 +14,9 @@ public interface LxcConstants {
     String CHAT_ID = "-1001474554890";
 
     /**
-     * 小鸡流量限制MB
+     * 小鸡流量限制GB
      */
-    Integer LXC_NETSTREAM_LIMIT = 200;
+    Integer LXC_NETSTREAM_LIMIT = 100;
 
     /**
      * 可开小鸡禁用标识

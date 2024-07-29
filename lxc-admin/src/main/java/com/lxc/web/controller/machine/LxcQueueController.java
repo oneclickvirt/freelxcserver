@@ -189,6 +189,7 @@ public class LxcQueueController extends BaseController {
             return R.fail("该母鸡已过期，请联系站长");
         }
 
+        // 查询母鸡-角色表中特定母鸡ip的记录列表，是有权限在该母鸡领取小鸡的角色的记录
         SysSuperRoleBo sysSuperRoleBo = new SysSuperRoleBo();
         sysSuperRoleBo.setSuperId(superLxc.getId());
         List<SysSuperRoleVo> sysSuperRoleVos = sysSuperRoleService.queryList(sysSuperRoleBo);
@@ -197,8 +198,10 @@ public class LxcQueueController extends BaseController {
         if (!sysSuperRoleVos.isEmpty()) {
             AtomicBoolean flag = new AtomicBoolean(false);
             sysSuperRoleVos.parallelStream()
+                // 从登录的用户信息里取出角色id，筛选对应角色id的记录
                 .filter(sysSuperRoleVo -> loginUser.hasRole(sysSuperRoleVo.getRoleId()))
                 .findFirst()
+                // 如果用户有角色权限，则把标志位设为true
                 .ifPresent(sysSuperRoleVo -> flag.set(true));
             if (!flag.get()) {
                 return R.fail("你没有领取权限");
@@ -212,7 +215,7 @@ public class LxcQueueController extends BaseController {
         if (lxcQuota - countUserUsed <= 0) {
             return R.fail(HttpStatus.HTTP_NOT_ACCEPTABLE, "配额不足");
         }
-
+        // 获取一个对象的值(CacheNames.LXC_SUPER_APPLY_LOCK)作为读写锁
         RReadWriteLock readWriteLock = RedisUtils.getClient().getReadWriteLock(CacheNames.LXC_SUPER_APPLY_LOCK + lxcSuperId);
         RLock rLock = readWriteLock.writeLock();
         rLock.lock();
@@ -364,7 +367,11 @@ public class LxcQueueController extends BaseController {
 //        lxcQueueService.applyLxc(superLxc,loginUser,applyBo,true);
         log.info(">>>>>>>>>>>>>>>>>superLxc:{}",superLxc);
         String superLxcIp = superLxc.getIp();
-        String lxcPort = checkWhichPortForLxd(superLxcIp);
+//        String lxcPort = checkWhichPortForLxd(superLxcIp);
+        // 从数据库取访问lxd还是incus端口
+        String way = superLxc.getWay();
+        System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>  " + way);
+        String lxcPort = "lxd".equals(way) ? LxcConstants.LXD_PORT : LxcConstants.INCUS_PORT;
         try {
             InstancesUtils.target(superLxcIp,lxcPort).postInstances(lxc, superLxc, applyBo);
             lxc.setUpdateTime(DateUtil.parseDate(DateUtil.now()));
@@ -463,11 +470,14 @@ public class LxcQueueController extends BaseController {
         password = superLxc.getPassword();
         name = lxc.getChildName();
 
+        String way = superLxc.getWay();
+        System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>  " + way);
         try {
             String res = ShellUtils.execCmdAndReturnStatus(
                 ShellDto.builder()
                     .ip(ip)
                     .password(password)
+                    .way(superLxc.getWay())
                     .modifyType(queueDto.modifyType)
                     .childName(name)
                     .build()

@@ -11,6 +11,7 @@ import java.io.Serializable;
 
 /**
  * 母鸡信息视图对象 lxc_super_lxc
+ * 改为 lxc_and_incus_super_lxc
  *
  * @author lxc
  * @date 2022-10-11
@@ -42,8 +43,8 @@ public class LxcSuperLxcVo implements Serializable {
     /**
      * 追加操作容器方式
      */
-//    @ExcelProperty(value = "操作方式")
-//    private String way;
+    @ExcelProperty(value = "操作方式")
+    private String way;
 
     /**
      * 母鸡IP

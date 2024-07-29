@@ -57,20 +57,28 @@ public class ShellUtils {
         " chattr -i /etc/iptables/rules.v6";
 */
 
+
+
     // 获取小鸡IP
     public static final String GET_LXC_IP = " lxc info %s | grep eth0 | head -n 1 | awk '{print $3}'";
+    public static final String GET_INCUS_IP = " incus info %s | grep eth0 | head -n 1 | awk '{print $3}'";
     public static final String NET_USED = " lxc info %s | awk '/eth0:/ {flag=1;next} /lo:/ {flag=0} flag {print}'| awk '/(Bytes received:)|(Bytes sent:)/ {print $NF}'";
+    public static final String NET_INCUS_USED = " incus info %s | awk '/eth0:/ {flag=1;next} /lo:/ {flag=0} flag {print}'| awk '/(Bytes received:)|(Bytes sent:)/ {print $NF}'";
     //    private static final String NET_USED = "sudo lxc info %s | grep -A 3 'Network usage:' |awk '{print $NF}' | tail -n +3 | head -n 2";
     public static final String GET_LXC_STATUS = " lxc info %s |grep -i -w status |awk '{print $NF}'";
+    public static final String GET_INCUS_STATUS = " incus info %s |grep -i -w status |awk '{print $NF}'";
     // 查询网卡
 //    public static final String GET_LXC_INTERFACE = " lxc info %s |grep -i -w \"Host interface\" |awk '{print $NF}'";
     public static final String GET_LXC_INTERFACE = " lxc info %s |grep -i -w \"Host Interface\" |awk '{print $NF}'";
+    public static final String GET_INCUS_INTERFACE = " incus info %s |grep -i -w \"Host Interface\" |awk '{print $NF}'";
     public static final String GET_LXC_INTERFACE_BACKUP = " lxc info %s |grep -i -w \"eth0\" |awk '{print $NF}'";
+    public static final String GET_INCUS_INTERFACE_BACKUP = " incus info %s |grep -i -w \"eth0\" |awk '{print $NF}'";
 
     // vnstat添加网卡
     public static final String VNSTAT_ADD_INTERFACE = "vnstat --add  %s";
 
     public static final String CHANGE_STATUS = " lxc %s %s >/dev/null 2>&1 ; " + GET_LXC_STATUS;
+    public static final String CHANGE_INCUS_STATUS = " incus %s %s >/dev/null 2>&1 ; " + GET_INCUS_STATUS;
 
     // ./buildone.sh 小鸡名称 内存大小 硬盘大小 SSH端口 外网起端口 外网止端口 下载速度 上传速度 是否启用IPV6(Y or N)
     public static final String CREATE_LXC = "nohup /root/buildone.sh %s %d %d %d %d %d %d %d %s >/dev/null 2>&1 &";
@@ -112,7 +120,9 @@ public class ShellUtils {
         + " fi";
 
     public static final String VNSTATI_SUMMARY = "vnstati -s -i $(lxc info %1$s |grep -i -w \"Host interface\" |awk '{print $NF}')  -o %2$s && base64 -w 0 %2$s  && rm -rf %2$s";
+    public static final String INCUS_VNSTATI_SUMMARY = "vnstati -s -i $(incus info %1$s |grep -i -w \"Host interface\" |awk '{print $NF}')  -o %2$s && base64 -w 0 %2$s  && rm -rf %2$s";
     public static final String VNSTATI_SUMMARY_STREAM = "vnstati  -vs 0 --headertext %1$s  -L -ne --scale 150 --style 3 -ru 0 -i $(lxc info %1$s |grep -i -w \"Host interface\" |awk '{print $NF}') -o -";
+    public static final String INCUS_VNSTATI_SUMMARY_STREAM = "vnstati  -vs 0 --headertext %1$s  -L -ne --scale 150 --style 3 -ru 0 -i $(incus info %1$s |grep -i -w \"Host interface\" |awk '{print $NF}') -o -";
 
     public static final String INIT_LOG = " if [ ! -f \"/root/%1$s_init.log\" ];then\n"
         + "  echo '创建日志不存在' \n"
@@ -126,6 +136,24 @@ public class ShellUtils {
         List<String> result;
     }
 
+
+//    public String checkWhichPort(String superIp){
+//        List<String> list = new ArrayList<>();
+//        LxcSuperLxcVo lxcSuperLxcVo = lxcSuperLxcService.queryByIp(superIp);
+//        String command = String.format("lsof -i:8443");
+//        try {
+//            list = ShellUtils.execCmdOutList(command,"root",lxcSuperLxcVo.getPassword(),lxcSuperLxcVo.getIp(),Integer.valueOf(lxcSuperLxcVo.getSshPort()));
+//            System.out.println(list.toString());
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
+//        if(list.size() == 0){
+//            return "incus";
+//        }else{
+//            return "lxc";
+//        }
+//    }
+
     /**
      * @param sshDto shell 命令
      * @throws Exception
@@ -136,11 +164,19 @@ public class ShellUtils {
         Integer sshPort = sshDto.getSshPort();
         String username = sshDto.getUsername();
         String password = sshDto.getPassword();
+        String way = sshDto.getWay();
         String modifyType = sshDto.getModifyType();
         String childName = sshDto.getChildName();
         String result = "";
         String command = "";
-        String nowStatus = ShellUtils.execCmdWithStatus(String.format(GET_LXC_STATUS,childName),Optional.ofNullable(username).orElse("root"),password,ip,22);
+        // TODO
+        String nowStatus = "";
+        if("incus".equals(way)){
+            nowStatus = ShellUtils.execCmdWithStatus(String.format(GET_INCUS_STATUS,childName),Optional.ofNullable(username).orElse("root"),password,ip,22);
+        }
+        if("lxd".equals(way)){
+            nowStatus = ShellUtils.execCmdWithStatus(String.format(GET_LXC_STATUS,childName),Optional.ofNullable(username).orElse("root"),password,ip,22);
+        }
         switch (modifyType) {
             case "stop":
                 if (nowStatus.equalsIgnoreCase("RUNNING")) {
@@ -198,7 +234,15 @@ public class ShellUtils {
             default:
                 return "无效操作";
         }
-        return result + ",当前状态：" + ShellUtils.execCmdWithStatus(String.format(CHANGE_STATUS,command,childName,childName),
+        String modifyCommand = "";
+        if("incus".equals(way)){
+            modifyCommand = CHANGE_INCUS_STATUS;
+        }
+        if("lxd".equals(way)){
+            modifyCommand = CHANGE_STATUS;
+        }
+
+        return result + ",当前状态：" + ShellUtils.execCmdWithStatus(String.format(modifyCommand,command,childName,childName),
                                                                     Optional.ofNullable(username).orElse("root"),
                                                                     password,ip,
                                                                     Optional.ofNullable(sshPort).orElse(22)
@@ -218,10 +262,19 @@ public class ShellUtils {
             Integer sshPort = sshDto.getSshPort();
             String username = sshDto.getUsername();
             String password = sshDto.getPassword();
+            String way = sshDto.getWay();
             String modifyType = sshDto.getModifyType();
             String childName = sshDto.getChildName();
             String result = "";
-            String command = String.format(NET_USED,childName);
+            // TODO
+            String command = "";
+            if("incus".equals(way)){
+                command = String.format(NET_INCUS_USED,childName);
+            }
+            if("lxd".equals(way)){
+                command = String.format(NET_USED,childName);
+            }
+
             list = ShellUtils.execCmdOutList(
                 command,
                 Optional.ofNullable(username).orElse("root"),

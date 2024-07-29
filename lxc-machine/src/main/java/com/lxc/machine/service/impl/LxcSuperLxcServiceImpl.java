@@ -97,6 +97,7 @@ public class LxcSuperLxcServiceImpl extends BaseService<LxcSuperLxcMapper, LxcSu
         lqw.eq(StringUtils.isNotBlank(bo.getTag()),LxcSuperLxc::getTag,bo.getTag());
         lqw.eq(StringUtils.isNotBlank(bo.getIp()),LxcSuperLxc::getIp,bo.getIp());
         lqw.eq(StringUtils.isNotBlank(bo.getPassword()),LxcSuperLxc::getPassword,bo.getPassword());
+        lqw.eq(StringUtils.isNotBlank(bo.getWay()),LxcSuperLxc::getWay,bo.getWay());
         lqw.eq(StringUtils.isNotBlank(bo.getSshPort()),LxcSuperLxc::getSshPort,bo.getSshPort());
         lqw.eq(StringUtils.isNotBlank(bo.getDate()),LxcSuperLxc::getDate,bo.getDate());
         lqw.eq(StringUtils.isNotBlank(bo.getDead()),LxcSuperLxc::getDead,bo.getDead());

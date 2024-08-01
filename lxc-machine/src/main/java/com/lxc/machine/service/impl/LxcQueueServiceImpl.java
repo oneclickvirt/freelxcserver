@@ -371,7 +371,8 @@ public class LxcQueueServiceImpl extends BaseService<LxcQueueMapper, LxcQueue> i
         try {
 //            String lxcPort = checkWhichPortForLxd(superLxcIp);
             String way = superLxc.getWay();
-            String lxcPort = "lxd".equals(way) ? LxcConstants.LXD_PORT : LxcConstants.INCUS_PORT;
+//            String lxcPort = "lxd".equals(way) ? LxcConstants.LXD_PORT : LxcConstants.INCUS_PORT;
+            String lxcPort = LxcConstants.LXD_PORT;
             // 调用REST API执行lxd命令创建实例，重构成incus时改成okHttp来请求API
             InstancesUtils.target(superLxcIp,lxcPort).postInstances(lxc, superLxc, lxcApplyBo);
         } catch (Exception e) {
@@ -525,7 +526,8 @@ public class LxcQueueServiceImpl extends BaseService<LxcQueueMapper, LxcQueue> i
         System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>  " + way);
 //        LxcSuperLxcVo lxcSuperLxcVo = lxcSuperLxcService.queryByIp(ip);
 
-        String lxcPort = "lxd".equals(way) ? LxcConstants.LXD_PORT : LxcConstants.INCUS_PORT;
+//        String lxcPort = "lxd".equals(way) ? LxcConstants.LXD_PORT : LxcConstants.INCUS_PORT;
+        String lxcPort = LxcConstants.LXD_PORT;
         try {
             // 目的是调用LXC的REST API创建实例
             return lxcApi.of(ip,lxcPort).getInstances(null, null);

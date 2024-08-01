@@ -73,7 +73,8 @@ public class LxcJobService {
                             LxcSuperLxc superLxc = lxcSuperLxcService.getOne(new QueryWrapper<LxcSuperLxc>().select("way").eq("ip", superIp));
                             String way = superLxc.getWay();
                             System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>  " + way);
-                            String lxcPort = "lxd".equals(way) ? LxcConstants.LXD_PORT : LxcConstants.INCUS_PORT;
+//                            String lxcPort = "lxd".equals(way) ? LxcConstants.LXD_PORT : LxcConstants.INCUS_PORT;
+                            String lxcPort = LxcConstants.LXD_PORT;
                             try {
                                 // incus和lxc只会才服务器上存在其中一个，获取小鸡实例不涉及incus或lxc的命令前缀
                                 lxcApi.of(superIp,lxcPort).getInstancesByNameState(lxcVoList.get(i).getChildName(), null, null);

@@ -371,7 +371,8 @@ public class LxcQueueController extends BaseController {
         // 从数据库取访问lxd还是incus端口
         String way = superLxc.getWay();
         System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>  " + way);
-        String lxcPort = "lxd".equals(way) ? LxcConstants.LXD_PORT : LxcConstants.INCUS_PORT;
+//        String lxcPort = "lxd".equals(way) ? LxcConstants.LXD_PORT : LxcConstants.INCUS_PORT;
+        String lxcPort = LxcConstants.LXD_PORT;
         try {
             InstancesUtils.target(superLxcIp,lxcPort).postInstances(lxc, superLxc, applyBo);
             lxc.setUpdateTime(DateUtil.parseDate(DateUtil.now()));

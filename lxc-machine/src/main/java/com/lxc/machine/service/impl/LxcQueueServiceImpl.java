@@ -506,6 +506,7 @@ public class LxcQueueServiceImpl extends BaseService<LxcQueueMapper, LxcQueue> i
 
     /**
      * 通过LxcId删除小鸡关联信息
+     * 删掉role
      */
     @Override
     public int delForceByLxcId(Long lxcId) {

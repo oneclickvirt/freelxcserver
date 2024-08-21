@@ -133,6 +133,8 @@ public class LxcLxcServiceImpl extends BaseService<LxcLxcMapper, LxcLxc> impleme
     private LambdaQueryWrapper<LxcLxc> buildQueryWrapper(LxcLxcBo bo) {
         Map<String, Object> params = bo.getParams();
         LambdaQueryWrapper<LxcLxc> lqw = Wrappers.lambdaQuery();
+        // 第一个参数是动态sql的条件设置 StringUtils.isNotBlank(字段) ==> <if test="字段!=null">
+        // 参数列表为(boolean condition,SFunction<LxcLxc,?> column,Object obj)   第二个参数是函数式接口，可以用lambda表达式或者类名::实例方法
         lqw.like(StringUtils.isNotBlank(bo.getName()), LxcLxc::getName, bo.getName());
         lqw.eq(StringUtils.isNotBlank(bo.getTag()), LxcLxc::getTag, bo.getTag());
         lqw.eq(StringUtils.isNotBlank(bo.getSuperIp()), LxcLxc::getSuperIp, bo.getSuperIp());
@@ -147,6 +149,7 @@ public class LxcLxcServiceImpl extends BaseService<LxcLxcMapper, LxcLxc> impleme
         lqw.eq(StringUtils.isNotBlank(bo.getHostInterface()), LxcLxc::getHostInterface, bo.getHostInterface());
         lqw.eq(StringUtils.isNotBlank(bo.getIpv6Addr()), LxcLxc::getIpv6Addr, bo.getIpv6Addr());
         lqw.eq(bo.getState() != null, LxcLxc::getState, bo.getState());
+
         return lqw;
     }
 
@@ -155,6 +158,7 @@ public class LxcLxcServiceImpl extends BaseService<LxcLxcMapper, LxcLxc> impleme
      */
     @Override
     public Boolean insertByBo(LxcLxcBo bo) {
+        // 底层用反射创建了一个LxcLxc对象，将bo赋值到该对象，再赋值给add
         LxcLxc add = BeanUtil.toBean(bo, LxcLxc.class);
         validEntityBeforeSave(add);
         boolean flag = baseMapper.insert(add) > 0;
@@ -165,10 +169,14 @@ public class LxcLxcServiceImpl extends BaseService<LxcLxcMapper, LxcLxc> impleme
     }
 
     /**
+     * update成功会返更新的记录数，大于0说明更新成功
      * 修改小鸡信息
      */
     @Override
     public Boolean updateByBo(LxcLxcBo bo) {
+//        等同于下面的Hutool中的BeanUtil.toBean()方法
+//        LxcLxc update1 = new LxcLxc();
+//        BeanUtils.copyProperties(bo,update1);
         LxcLxc update = BeanUtil.toBean(bo, LxcLxc.class);
         validEntityBeforeSave(update);
         return baseMapper.updateById(update) > 0;
@@ -190,9 +198,19 @@ public class LxcLxcServiceImpl extends BaseService<LxcLxcMapper, LxcLxc> impleme
      */
     private void validEntityBeforeSave(LxcLxc entity) {
         //TODO 做一些数据校验,如唯一约束
+        // 查数据库该entity数据是否唯一
+        Long lxcId = entity.getId();
+        QueryWrapper<LxcLxc> qw = new QueryWrapper<>();
+        qw.eq("id",entity.getPassword());
+        if(baseMapper.selectCount(qw) <= 0) {
+            System.out.println("可以正常添加小鸡 "+lxcId);
+        }else {
+            System.out.println("同lxcId的数据已存在，请不要重复添加");
+        }
     }
 
     /**
+     * 删除不存在的数据时，返回0，即有0条数据被删除
      * 批量删除小鸡信息
      */
     @Override
@@ -330,6 +348,7 @@ public class LxcLxcServiceImpl extends BaseService<LxcLxcMapper, LxcLxc> impleme
                     freeMap.put("value", freeNum);
                     freeList.add(freeMap);
                 }
+
             });
             return freeList;
         } else {//忙碌
@@ -370,7 +389,7 @@ public class LxcLxcServiceImpl extends BaseService<LxcLxcMapper, LxcLxc> impleme
             .last("limit 1")
             .oneOpt()
             .map(superLxc -> {
-                //配置IP、ssh、权限、密码获取会话Sessino
+                //配置IP、ssh、权限、密码获取会话Sessinon
                 Session session = JschUtil.getSession(superLxc.getIp(), 22, "root", superLxc.getPassword());
                 return mapper.apply(session, lxc);
             })

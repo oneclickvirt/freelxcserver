@@ -73,7 +73,11 @@ public class LxcLxcController extends BaseController {
     private final LxcQueueMapper queueMapper;
     private final LxcSuperLxcMapper superLxcMapper;
 
-
+    /**
+     * 根据lxcId查找lxc状态【lxc->superLxc->shell】
+     * @param lxcId
+     * @return
+     */
     @RateLimiter(count = 60, time = 60, limitType = LimitType.IP)
     @SaCheckPermission("lxc:lxc:all") //权限判断
     @RequestMapping("/pingLxc")
@@ -112,14 +116,14 @@ public class LxcLxcController extends BaseController {
         }
         try {
             String way = superLxc.getWay();
-            System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>  " + way);
+            log.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>  " + way);
             String operWay = "";
             if("lxd".equals(way)){
                 operWay = "lxc";
             }else{
                 operWay = "incus";
             }
-            //对终端进行操作的命令 TODO
+            //对终端进行操作的命令 使用NF来表示列数 $NF 表示打印出等于总列数的那一列的数据
             String res = ShellUtils.execCmdWithStatus(operWay + " info " + lxcLxcVo.getChildName() + " |grep -i -w status |awk '{print $NF}'", "root", superLxc.getPassword(), lxcLxcVo.getSuperIp(), 22);
             return StringUtils.equalsIgnoreCase(res, "Running");
         } catch (Exception e) {
@@ -143,6 +147,7 @@ public class LxcLxcController extends BaseController {
         // 能获取到的角色列表即为空闲小鸡列表
         String cacheKey = CacheNames.FREE_LXC_LIST + ":" + roleIds;
         List<LxcLxcVo> lxcLxcVos = null;
+
         if (RedisUtils.hasKey(cacheKey)) {
             // 若之前缓存到redis中，直接取出列表
             lxcLxcVos = RedisUtils.getCacheList(cacheKey);
@@ -205,7 +210,7 @@ public class LxcLxcController extends BaseController {
         LxcSuperLxcVo superLxc = superLxcMapper.selectVoOne(queryWrapper);
         String way = superLxc.getWay();
         System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>  " + way);
-        //获取队列网络统计信息，通过shell获取
+        //获取小鸡流量接收和发送情况
         queue.setNetUsage(ShellUtils.getNetUsedInfo(
             ShellDto.builder()
                 .ip(lxc.getSuperIp())

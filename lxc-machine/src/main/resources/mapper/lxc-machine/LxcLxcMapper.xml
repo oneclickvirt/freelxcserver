@@ -25,19 +25,19 @@
         <result property="updateBy" column="update_by"/>
         <result property="updateTime" column="update_time"/>
     </resultMap>
-
+    <!--role_id和lxc_id联合主键-->
     <select id="getLxcListWithRoles" resultMap="LxcLxcResult">
         select lxc.id,lxc.name,lxc.tag,lxc.child_name,lxc.super_dead from lxc_lxc as lxc
         <where>
             lxc.state = 0
             <foreach collection="sysRoles" item="role" open="and (" separator="or" close=")">
-                exists (select 1 from sys_lxc_role as sr where sr.role_id = #{role.roleId} and sr.lxc_id = lxc.id)
+                exists (select 1 from sys_lxc_role as sr where sr.lxc_id = lxc.id and sr.role_id = #{role.roleId})
             </foreach>
         </where>
     </select>
-
+    <!--count(主键)会不会更快-->
     <select id="countUsedByTgId" resultType="java.lang.Integer">
-        SELECT COUNT(*)
+        SELECT COUNT(b.id)
         from lxc_queue a
                  LEFT JOIN lxc_lxc b on a.lxc_id = b.id
         WHERE (a.tg_id = #{tgId} AND b.lxc_status != '7' and b.lxc_status != '5')

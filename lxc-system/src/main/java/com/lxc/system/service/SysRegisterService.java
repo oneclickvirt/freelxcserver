@@ -61,7 +61,8 @@ public class SysRegisterService {
 
         //账号验证
         if (!BotUtils.isMember(LxcConstants.CHAT_ID, Long.valueOf(tgId))) {
-//            throw new UserException("user.tg.error");  TODO 跳过验证
+            throw new UserException("user.tg.error");
+//            TODO 跳过验证
 
         }
 
@@ -70,8 +71,8 @@ public class SysRegisterService {
             throw new UserException("user.register.save.error", username);
         }
 
-        /*String tgUserName = BotUtils.getUserName(LxcBotConstants.CHAT_ID, Long.valueOf(tgId));
-        if (tgUserName == null) throw new UserException("user.tg.noname");*/
+        String tgUserName = BotUtils.getUserName(LxcBotConstants.CHAT_ID, Long.valueOf(tgId));
+        if (tgUserName == null) throw new UserException("user.tg.noname");
 
         LxcUser user = new LxcUser();
         user.setName(username);

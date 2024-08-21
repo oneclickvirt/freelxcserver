@@ -109,13 +109,13 @@ public class ValidateCodeUtils {
         logger.debug(random_string);
 
         g.dispose();
-
+        // 移除原来"checkCode"的键值对，重新设置值
         session.removeAttribute(sessionKey);
         session.setAttribute(sessionKey, random_string);
 
         String base64String = "";
         try {
-            //  直接返回图片
+            //  直接返回图片，通过响应返回
             ImageIO.write(image, "PNG", response.getOutputStream());
 
         } catch (Exception e) {

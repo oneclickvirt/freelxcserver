@@ -169,10 +169,10 @@ public class AdminApi {
         HttpSession session = request.getSession();
         Object sessionCode = session.getAttribute("loginType");
 
-
+        // 验证当前管理员用户是否登录
         if (sessionCode == null || !Objects.equals("true", sessionCode.toString().toLowerCase()))
             return R.fail(HttpStatus.HTTP_FORBIDDEN, "未登录");
-
+        // 新增小鸡的操作携带的token如果不是指定字符串
         if (!addLxcDto.getToken().equals("spiritlhl")) return R.fail(HttpStatus.HTTP_FORBIDDEN, "不要调皮");
         LxcLxc lxc = new LxcLxc();
 
@@ -245,10 +245,16 @@ public class AdminApi {
         return R.success("执行完毕");
     }
 
+    /**
+     * 通过JSON格式来添加小鸡
+     * @param lxcTextDto
+     * @return
+     */
     @PostMapping("/addLxc")
     public R addLxc(@RequestBody @Valid LxcTextDto lxcTextDto) {
+        // lxcText中以文本形式记录了小鸡的信息
         String contents = lxcTextDto.getLxcText();
-
+        // 校验内容是否符合规则
         String pattern = "([a-z]+\\d*) (\\d*) ([\\da-z]*) ?(\\d*) ?(\\d*)";
         Pattern r = Pattern.compile(pattern);
         Matcher m = r.matcher(contents);
@@ -257,7 +263,7 @@ public class AdminApi {
         String dtoJson = lxcTextDto.getSuperIp();
 
         while (m.find()) {
-            //信息独立截取
+            //信息独立截取，以空格分割
             String[] arr = m.group(0).split(" ");
             List<String> lxcList = Arrays.asList(arr);
             String lxcName = lxcList.get(0);

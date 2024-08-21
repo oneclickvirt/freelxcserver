@@ -3,9 +3,6 @@ package com.lxc.system.telegram;
 import com.lxc.common.constant.LxcConstants;
 import com.lxc.common.utils.BotUtils;
 import com.lxc.common.utils.StringUtils;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -17,6 +14,10 @@ import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 @Slf4j
 public class LxcBot extends TelegramLongPollingBot {
@@ -128,7 +129,7 @@ public class LxcBot extends TelegramLongPollingBot {
     }
 
     private void doHandel(Long chatId, String param, Integer messageId) {
-        if (!BotUtils.isMember(LxcConstants.CHAT_ID,chatId)) { // TODO 跳过验证，判断取反
+        if (BotUtils.isMember(LxcConstants.CHAT_ID,chatId)) { // TODO 跳过验证，判断取反
             String text = lxcHandler.handle(chatId,param);
             if (StringUtils.equals(text,"start")) {
                 sendStartMsg(chatId.toString());

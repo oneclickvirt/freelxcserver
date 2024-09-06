@@ -201,6 +201,7 @@ public class LxcLxcController extends BaseController {
         queue.setPortEnd(lxc.getPortEnd());
         queue.setPassword(lxc.getPassword());
         queue.setIpv6Addr(lxc.getIpv6Addr());
+        queue.setChildName(lxc.getChildName());
         QueryWrapper<LxcSuperLxc> queryWrapper = new QueryWrapper<>();
         //.select里的是查询后显示控制台能看到的内容
         queryWrapper.select("password","way").

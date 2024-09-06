@@ -282,7 +282,13 @@ public class LxcQueueController extends BaseController {
         LxcLxcVo lxcLxcVo = lxcMapper.selectVoLxc(tgId,childName);
 
         LxcLxcBo lxcLxcBo = new LxcLxcBo();
-        BeanUtils.copyProperties(lxcLxcVo,lxcLxcBo);
+        if(lxcLxcVo != null)
+            BeanUtils.copyProperties(lxcLxcVo,lxcLxcBo);
+        else {
+            String voNull = String.format("获取用户%s的小鸡的名称传递错误，为：%s", tgId, childName);
+            return R.fail(voNull);
+        }
+
         if(lxcLxcBo != null) {
             resetUserLxcData(lxcLxcBo);
             return R.ok("重建小鸡成功");
@@ -337,22 +343,14 @@ public class LxcQueueController extends BaseController {
 
         lxc.setLxcStatus(LxcStatus.WAITING_FOR_PROCESS.getCode());
 
-//        String keyOfLxc = String.format(CacheNames.LXC_LXC_RESET, lxc.getId());
-//        RedisUtils.setCacheObject(keyOfLxc,lxc);
-
         queueVo.setPortStart(lxc.getPortStart());
         queueVo.setPortEnd(lxc.getPortEnd());
         queueVo.setPassword(lxc.getPassword());
         queueVo.setIpv6Addr(lxc.getIpv6Addr());
-//        String keyOfQueue = String.format(CacheNames.LXC_QUEUE_RESET, lxc.getId());
-//        RedisUtils.setCacheObject(keyOfQueue,queueVo);
-        log.info(">>>>>>>>>>>>>>>>>lxc:{}",lxc);
-        log.info(">>>>>>>>>>>>>>>>>queue:{}",queueVo);
 
         String keyOfSuperLxc = String.format(CacheNames.LXC_SUPER_LXC_RESET, lxc.getId());
         LxcSuperLxc superLxc = RedisUtils.getCacheObject(keyOfSuperLxc);
         log.info("小鸡重建前信息获取成功:{}",queueVo);
-
 
 //        lxcQueueService.deleteWithValidByIds(Arrays.asList(queue.getId()),true);
         Boolean aBoolean = lxcLxcService.deleteWithValidByIdsInReset(Arrays.asList(lxc.getId()), true);
@@ -384,32 +382,7 @@ public class LxcQueueController extends BaseController {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        /**
-         * 创建小鸡是后台任务，这里状态修改是前台任务，修改得太早了
-         */
-        // 检查小鸡重建前是否流量超限，若超限，则小鸡状态设为frozen TODO
-/*
-        if(lxc.getLxcStatus().equals(LxcStatus.RUNNING.getCode()) && lxcStatusOrigin.equalsIgnoreCase(LxcStatus.TRAFFIC_LIMIT.getCode())){
-            try {
-                ShellUtils.execCmdAndReturnStatus(ShellDto.builder()
-                    .ip(superLxcIp)
-                    .password(superLxc.getPassword())
-                    .modifyType("traffic_limit")
-                    .childName(lxc.getChildName())
-                    .build());
-                lxcLxcService.updateStatus(LxcStatus.TRAFFIC_LIMIT.getCode(),lxc.getId());
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-*/
 
-
-        //删除lxc和queue缓存
-//        RedisUtils.deleteObject(keyOfApplyVo);
-//        RedisUtils.deleteObject(keyOfSuperLxc);
-//        RedisUtils.deleteObject(keyOfLxc);
-//        RedisUtils.deleteObject(keyOfQueue);
         return R.ok();
     }
 

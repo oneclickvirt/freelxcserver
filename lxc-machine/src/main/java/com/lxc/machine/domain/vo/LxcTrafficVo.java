@@ -2,8 +2,9 @@ package com.lxc.machine.domain.vo;
 
 import com.alibaba.excel.annotation.ExcelIgnoreUnannotated;
 import com.alibaba.excel.annotation.ExcelProperty;
-import java.util.Date;
 import lombok.Data;
+
+import java.util.Date;
 
 /**
  * 小鸡流量统计视图对象 lxc_traffic
@@ -20,7 +21,7 @@ public class LxcTrafficVo {
     /**
      * lxc_lxc小鸡表id
      */
-    @ExcelProperty(value = "lxc_lxc小鸡表id")
+    @ExcelProperty(value = "lxc_lxc_and_traffic小鸡表id")
     private Long lxcId;
 
     /**

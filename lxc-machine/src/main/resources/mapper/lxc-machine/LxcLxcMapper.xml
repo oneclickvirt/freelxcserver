@@ -18,6 +18,7 @@
         <result property="superDead" column="super_dead"/>
         <result property="state" column="state"/>
         <result property="lxcStatus" column="lxc_status"/>
+        <result property="lxcTraffic" column="lxc_traffic"/>
         <result property="hostInterface" column="host_interface"/>
         <result property="ipv6Addr" column="ipv6_addr"/>
         <result property="createBy" column="create_by"/>
@@ -27,7 +28,7 @@
     </resultMap>
     <!--role_id和lxc_id联合主键-->
     <select id="getLxcListWithRoles" resultMap="LxcLxcResult">
-        select lxc.id,lxc.name,lxc.tag,lxc.child_name,lxc.super_dead from lxc_lxc as lxc
+        select lxc.id,lxc.name,lxc.tag,lxc.child_name,lxc.super_dead from lxc_lxc_and_traffic as lxc
         <where>
             lxc.state = 0
             <foreach collection="sysRoles" item="role" open="and (" separator="or" close=")">
@@ -39,7 +40,7 @@
     <select id="countUsedByTgId" resultType="java.lang.Integer">
         SELECT COUNT(b.id)
         from lxc_queue a
-                 LEFT JOIN lxc_lxc b on a.lxc_id = b.id
+                 LEFT JOIN lxc_lxc_and_traffic b on a.lxc_id = b.id
         WHERE (a.tg_id = #{tgId} AND b.lxc_status != '7' and b.lxc_status != '5')
     </select>
 

@@ -4,10 +4,12 @@ import com.lxc.common.core.domain.dto.RoleDTO;
 import com.lxc.common.core.mapper.BaseMapperPlus;
 import com.lxc.machine.domain.LxcLxc;
 import com.lxc.machine.domain.vo.LxcLxcVo;
-import java.util.List;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
+
+import java.math.BigDecimal;
+import java.util.List;
 
 /**
  * 小鸡信息Mapper接口
@@ -33,10 +35,10 @@ public interface LxcLxcMapper extends BaseMapperPlus<LxcLxcMapper,LxcLxc,LxcLxcV
      * @param childName
      * @return
      */
-    @Select("select * from lxc_lxc lxc left join lxc_queue queue on lxc.id = queue.lxc_id where queue.tg_id=#{tgId} and lxc.child_name=#{childName}")
+    @Select("select * from lxc_lxc_and_traffic lxc left join lxc_queue queue on lxc.id = queue.lxc_id where queue.tg_id=#{tgId} and lxc.child_name=#{childName}")
     LxcLxcVo selectVoLxc(@Param("tgId") String tgId,@Param("childName") String childName);
 
-    @Select("select * from lxc_lxc lxc left join lxc_queue queue on lxc.id = queue.lxc_id where lxc_status=#{lxcStatus}")
+    @Select("select * from lxc_lxc_and_traffic lxc left join lxc_queue queue on lxc.id = queue.lxc_id where lxc_status=#{lxcStatus}")
     List<LxcLxcVo> selectVoLxcByStatus(@Param("lxcStatus") String lxcStatus);
 
     /**
@@ -44,13 +46,21 @@ public interface LxcLxcMapper extends BaseMapperPlus<LxcLxcMapper,LxcLxc,LxcLxcV
      * @param lxcStatus
      * @return
      */
-    @Select("select * from lxc_lxc lxc where lxc_status=#{lxcStatus}")
+    @Select("select * from lxc_lxc_and_traffic lxc where lxc_status=#{lxcStatus}")
     List<LxcLxc> selectLxcListByStatus(@Param("lxcStatus") String lxcStatus);
 
     /**
      * 更新小鸡状态
      * @param lxcStatus
      */
-    @Update("update lxc_lxc set lxc_status=#{lxcStatus} where id=#{id}")
+    @Update("update lxc_lxc_and_traffic set lxc_status=#{lxcStatus} where id=#{id}")
     void updateStatus(@Param("lxcStatus") String lxcStatus,@Param("id") Long id);
+
+    /**
+     *
+     * @param id
+     * @param lxcTraffic
+     */
+    @Update("update lxc_lxc_and_traffic set lxc_traffic=#{lxcTraffic} where id=#{id}")
+    void updateTraffic(Long id, BigDecimal lxcTraffic);
 }

@@ -101,6 +101,11 @@ public class LogAspect {
     /**
      * 获取注解中对方法的描述信息 用于Controller层注解
      *
+     * getArgs()方法用于获取传入目标方法的参数信息，
+     * getTarget()方法用于获取被代理的对象信息，
+     * getSignature()方法用于获取执行方法的信息（包括方法名称、方法的类名和全类名、方法的声明类型等）
+     *
+     *
      * @param log     日志
      * @param operLog 操作日志
      * @throws Exception

@@ -26,9 +26,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.junit.Test;
 import org.relxd.lxd.ApiException;
 import org.relxd.lxd.api.InstancesApi;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
-import java.util.*;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -45,6 +51,7 @@ public class LxcJobService {
     private final ILxcLxcService lxcService;
 
     private final ILxcSuperLxcService lxcSuperLxcService;
+
 
     @XxlJob("initLxc")
     public void initLxc() {
@@ -188,56 +195,13 @@ public class LxcJobService {
             );
     }
 
-    /**
-     * 重设重建小鸡前流量超限状态并冻结小鸡
-     */
-    @XxlJob("resetTrafficLimitStatus")
-    public void resetTrafficLimitStatus() {
-        // 查找所有运行的小鸡
-        List<LxcLxcVo> lxcList = lxcService.getLxcList(new QueryWrapper<LxcLxc>().eq("lxc_status", LxcStatus.RUNNING.getCode()));
-        for (LxcLxcVo lxcVo : lxcList) {
-            Long lxcId = lxcVo.getId();
-            // 获取母鸡
-            String childName = lxcVo.getChildName();
-            String superIp = lxcVo.getSuperIp();//这里可能为null
-            LxcSuperLxcVo superLxc = lxcSuperLxcService.queryByIp(superIp);
-
-            String way = superLxc.getWay();
-            System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>  " + way);
-
-            /** TODO
-             * 暂时先用redis来存小鸡重建前状态
-             */
-            String keyOfLxcStatus = String.format(CacheNames.LXC_ORIGINAL_STATUS,lxcId);
-            if(RedisUtils.hasKey(keyOfLxcStatus)){
-                String lxcOriginalStatus = RedisUtils.getCacheObject(keyOfLxcStatus);
-                if(lxcOriginalStatus.equals(LxcStatus.TRAFFIC_LIMIT.getCode())){
-                    try {
-                        ShellUtils.execCmdAndReturnStatus(ShellDto.builder()
-                            .ip(superIp)
-                            .password(superLxc.getPassword())
-                            .way(superLxc.getWay())
-                            .modifyType("traffic_limit")
-                            .childName(childName)
-                            .build());
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                    // 重设为流量超限状态
-                    lxcService.updateStatus(LxcStatus.TRAFFIC_LIMIT.getCode(),lxcId);
-                }
-
-//                RedisUtils.deleteKeys(keyOfLxcStatus);  // 会使该键变成一次性
-            }
-        }
-
-    }
 
     /**
      * 定时判断小鸡是否创建成功
      */
     @XxlJob("checkLxcPending")
     public void checkLxcPending() {
+        // 获取在排队的小鸡
         List<LxcLxcVo> lxcPendingList = lxcService.getLxcList(
             new QueryWrapper<LxcLxc>()
                 .eq("lxc_status", LxcStatus.PENDING.getCode()) // 2
@@ -247,6 +211,7 @@ public class LxcJobService {
         );
         if (!lxcPendingList.isEmpty()) {
             XxlJobHelper.log("当前有{}个小鸡正在创建中", lxcPendingList.size());
+            // 给排队的小鸡都安排创建
             lxcPendingList.forEach(lxc -> {
                 try {
                     String superIp = lxc.getSuperIp();
@@ -303,6 +268,7 @@ public class LxcJobService {
                             if("incus".equals(way)){
                                 hostInterfaceCommand = ShellUtils.GET_INCUS_INTERFACE_BACKUP;
                             }
+                            // veth获取不到接口名，换成获取eth0开头的的接口名
                             interfaceRes = ShellUtils.execCmdOutList(hostInterfaceCommand, ShellUtils.getSession(shellDto));
                         }
 //                        if (interfaceRes.size() == 1) {
@@ -381,10 +347,68 @@ public class LxcJobService {
         });
     }
 
+    /**
+     * 重设重建小鸡前流量超限状态并冻结小鸡
+     */
+    @XxlJob("resetTrafficLimitStatus")
+    public void resetTrafficLimitStatus() {
+        // 查找所有运行的小鸡
+        List<LxcLxcVo> lxcList = lxcService.getLxcList(new QueryWrapper<LxcLxc>().eq("lxc_status", LxcStatus.RUNNING.getCode()));
+        if(lxcList.size() > 0 && lxcList != null) {
+            for (LxcLxcVo lxcVo : lxcList) {
+                Long lxcId = lxcVo.getId();
+                // 获取母鸡
+                String childName = lxcVo.getChildName();
+                String superIp = lxcVo.getSuperIp();//这里可能为null
+                LxcSuperLxcVo superLxc = lxcSuperLxcService.queryByIp(superIp);
+
+                String way = superLxc.getWay();
+                System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>  " + way);
+
+                /** TODO
+                 * 暂时先用redis来存小鸡重建前状态
+                 */
+                String keyOfLxcStatus = String.format(CacheNames.LXC_ORIGINAL_STATUS, lxcId);
+                if (RedisUtils.hasKey(keyOfLxcStatus)) {
+                    String lxcOriginalStatus = RedisUtils.getCacheObject(keyOfLxcStatus);
+                    if (lxcOriginalStatus.equals(LxcStatus.TRAFFIC_LIMIT.getCode())) {
+                        try {
+                            ShellUtils.execCmdAndReturnStatus(ShellDto.builder()
+                                .ip(superIp)
+                                .password(superLxc.getPassword())
+                                .way(superLxc.getWay())
+                                .modifyType("traffic_limit")
+                                .childName(childName)
+                                .build());
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                        // 重设为流量超限状态
+                        lxcService.updateStatus(LxcStatus.TRAFFIC_LIMIT.getCode(), lxcId);
+                    }
+
+//                RedisUtils.deleteKeys(keyOfLxcStatus);  // 会使该键变成一次性
+                }
+            }
+        }
+    }
 
     /**
-     * 检查实例使用的网络流量是否超过限量
+     * 定时将流量使用情况更新到数据库
      */
+//    @XxlJob("updateNetUsed")
+//    public void updateNetUsed() {
+//        // 查询正在运行的小鸡列表
+//        List<LxcLxcVo> lxcRunningList = lxcService.getLxcList(
+//            new QueryWrapper<LxcLxc>()
+//                .eq("lxc_status", LxcStatus.RUNNING.getCode()) // 3
+//                .orderBy(true, true, "create_time")
+//        );
+//        for (LxcLxcVo lxcLxcVo : lxcRunningList) {
+//
+//        }
+//    }
+
     @XxlJob("checkAndSetNetExceed")
     public void checkAndSetNetExceed(){
         //对母鸡操作，在后台调出每只小鸡的名称和ip？然后注意获取网络流量，判断是否超过
@@ -394,9 +418,9 @@ public class LxcJobService {
         );
 
 //        int cnt = 1;
-        if(lxcRunningList.size() == 0){
-            XxlJobHelper.log("--------此时没有已开机的小鸡--------");
-        }else{
+        if(lxcRunningList.size() > 0 && lxcRunningList != null){
+
+            // 查询正在运行的小鸡的发送和接收流量总量，超过限制就冻结服务器
             for (LxcLxcVo lxcLxcVo : lxcRunningList) {
 //                System.out.println("第" + cnt + "个小鸡对象:" + lxcLxcVo);
 
@@ -409,6 +433,7 @@ public class LxcJobService {
                 String way = superLxc.getWay();
                 String getIpCommand = "";
                 String command = "";
+                // lxc/incus info ContainName 中有容器流量使用情况
                 if("lxd".equals(way)){
                     getIpCommand = String.format(ShellUtils.GET_LXC_IP, childName);
                     command = String.format(NET_USED,childName);
@@ -446,67 +471,189 @@ public class LxcJobService {
                     if(list == null || list.size() == 0){
                         System.out.println("没有获取到流量使用情况");
                     }
+
                     System.out.println("该小鸡的流量使用情况为："+list);
-                    double summaryNetFlow = 0.0;
+
+                    // TODO 用BigDecimal重写流量累积   lxcTraffic对应的java类型就是BigDecimal
+                    BigDecimal summaryNetFlow = lxcLxcVo.getLxcTraffic();
+//                    double summaryNetFlow = 0.0;
+                    // TODO 将查出来的流量同步到数据库
                     String numberStr = "";
                     String unitStr = "";
                     for (String flow : list) {
-                            // 这里没考虑发送和接收的流量单位不同的情况，可能要加个化单位步骤
-                            numberStr = extractNumber(flow);
-                            unitStr = extractUnit(flow);
-                            // 将kB和B化为GB
-                            double flow2GB = unitUnify(numberStr,unitStr);
-                            summaryNetFlow += flow2GB;
-                            // 限制每月小鸡流量为LXC_NETSTREAM_LIMIT(MB)，将小鸡状态修改为"流量超限"，另外要有一个每个月开始将小鸡状态恢复
-                            try {
-                                if(summaryNetFlow >= LxcConstants.LXC_NETSTREAM_LIMIT){
-                                    // 小鸡关机且不能让前端的开机操作响应；
-                                    ShellUtils.execCmdAndReturnStatus(ShellDto.builder()
-                                        .ip(superIp)
-                                        .password(superLxc.getPassword())
-                                        .way(superLxc.getWay())
-                                        .modifyType("traffic_limit")
-                                        .childName(childName)
-                                        .build());
-                                    // 网络流量超过限制
+                        // 这里没考虑发送和接收的流量单位不同的情况，可能要加个化单位步骤
+                        numberStr = extractNumber(flow);
+                        unitStr = extractUnit(flow);
+                        // 将kB和B化为MB
+                        BigDecimal flow2MB = unitUnify(numberStr,unitStr);
+                        summaryNetFlow = summaryNetFlow.add(flow2MB);
+                        // 限制每月小鸡流量为LXC_NETSTREAM_LIMIT(GB)，将小鸡状态修改为"流量超限"，另外要有一个每个月开始将小鸡状态恢复
+                        try {
+                            // compareTo ==> -1：左小于右；0：左等于右；1：左大于右
+                            if(summaryNetFlow.compareTo(BigDecimal.valueOf(LxcConstants.LXC_NETSTREAM_LIMIT*1024)) == 1){
+                                // 小鸡关机且不能让前端的开机操作响应；
+                                ShellUtils.execCmdAndReturnStatus(ShellDto.builder()
+                                    .ip(superIp)
+                                    .password(superLxc.getPassword())
+                                    .way(superLxc.getWay())
+                                    .modifyType("traffic_limit")
+                                    .childName(childName)
+                                    .build());
+                                // 网络流量超过限制
 //                                    lxcLxcVo.setLxcStatus(LxcStatus.TRAFFIC_LIMIT.getCode());
-                                    lxcService.updateStatus(LxcStatus.TRAFFIC_LIMIT.getCode(),lxcLxcVo.getId());
+                                lxcService.updateStatus(LxcStatus.TRAFFIC_LIMIT.getCode(),lxcLxcVo.getId());
 
-                                }
-                            } catch (NumberFormatException e) {
-                                System.err.println("Error parsing number: " + numberStr);
                             }
+                        } catch (NumberFormatException e) {
+                            System.err.println("Error parsing number: " + numberStr);
+                        }
                     }
-                    System.out.println("小鸡 " + childName + ":" + childIp + " 目前用了" + summaryNetFlow + unitStr + "流量");
+                    // 将流量使用量写入到数据库
+                    LxcLxcBo lxcLxcBo = new LxcLxcBo();
+                    BeanUtils.copyProperties(lxcLxcVo,lxcLxcBo);
+                    lxcLxcBo.setLxcTraffic(summaryNetFlow);
+                    lxcService.updateTraffic(lxcLxcBo);
+                    System.out.println("小鸡 " + childName + ":" + childIp + " 目前用了 " + summaryNetFlow + " MB流量");
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
             }
         }
-
+        else {
+            XxlJobHelper.log("-------------此时没有小鸡正在运行-----------");
+        }
     }
 
+
     /**
-     * 流量单位换算 -> GB
+     * 检查实例使用的网络流量是否超过限量（用的double）
+     */
+//    @XxlJob("checkAndSetNetExceed")
+//    public void checkAndSetNetExceed(){
+//        //对母鸡操作，在后台调出每只小鸡的名称和ip？然后注意获取网络流量，判断是否超过
+//        //阈值
+//        List<LxcLxcVo> lxcRunningList = lxcService.getLxcAndQueueList(
+//            LxcStatus.RUNNING.getCode()
+//        );
+//
+////        int cnt = 1;
+//        if(lxcRunningList.size() == 0){
+//            XxlJobHelper.log("--------此时没有已开机的小鸡--------");
+//        }else{
+//            // 查询正在运行的小鸡的发送和接收流量总量，超过限制就冻结服务器
+//            for (LxcLxcVo lxcLxcVo : lxcRunningList) {
+////                System.out.println("第" + cnt + "个小鸡对象:" + lxcLxcVo);
+//
+//                String childName = lxcLxcVo.getChildName();
+//                String superIp = lxcLxcVo.getSuperIp();//这里可能为null
+//                LxcSuperLxcVo superLxc = lxcSuperLxcService.queryByIp(superIp);
+////                System.out.println("第" + cnt + "个母鸡对象:" + superLxc);
+////                cnt++;
+//                // 通过母鸡ip和小鸡名称获取小鸡ip
+//                String way = superLxc.getWay();
+//                String getIpCommand = "";
+//                String command = "";
+//                // lxc/incus info ContainName 中有容器流量使用情况
+//                if("lxd".equals(way)){
+//                    getIpCommand = String.format(ShellUtils.GET_LXC_IP, childName);
+//                    command = String.format(NET_USED,childName);
+//                }
+//                if("incus".equals(way)){
+//                    getIpCommand = String.format(ShellUtils.GET_INCUS_IP,childName);
+//                    command = String.format(NET_INCUS_USED,childName);
+//                }
+//
+//                List<String> childIpList = new ArrayList<>();
+//                String childIp = "";
+//                try {
+//                    childIpList = ShellUtils.execCmdOutList(getIpCommand,"root",superLxc.getPassword(),superIp,Integer.valueOf(superLxc.getSshPort()));
+//                    childIp = childIp + childIpList.get(0);// 字符串拼接，拼接小鸡ip地址
+//                    XxlJobHelper.log("正在监测流量使用的小鸡ip为：{}",childIp);
+//                } catch (Exception e) {
+//                    XxlJobHelper.log("--------获取活动的小鸡ip失败--------");
+//                    e.printStackTrace();
+//                }
+//                // 小鸡的ip是动态变化的
+//                Integer sshPort = Integer.valueOf(superLxc.getSshPort());
+//                String lxcPassword = lxcLxcVo.getPassword();
+//
+//                String result = "";
+//                // command放到上面的判断中
+////                String command = String.format(NET_USED,childName);
+//                try {
+//                    List<String> list = ShellUtils.execCmdOutList(
+//                        // 连接母鸡执行lxc info <container>命令
+//                        command,
+//                        "root",
+//                        superLxc.getPassword(), superIp,
+//                        Optional.ofNullable(sshPort).orElse(22)
+//                    );
+//                    if(list == null || list.size() == 0){
+//                        System.out.println("没有获取到流量使用情况");
+//                    }
+//                    System.out.println("该小鸡的流量使用情况为："+list);
+//                    double summaryNetFlow = 0.0;
+//                    // TODO 将查出来的流量同步到数据库
+//                    String numberStr = "";
+//                    String unitStr = "";
+//                    for (String flow : list) {
+//                            // 这里没考虑发送和接收的流量单位不同的情况，可能要加个化单位步骤
+//                            numberStr = extractNumber(flow);
+//                            unitStr = extractUnit(flow);
+//                            // 将kB和B化为GB
+//                            double flow2GB = unitUnify(numberStr,unitStr);
+//                            summaryNetFlow += flow2GB;
+//                            // 限制每月小鸡流量为LXC_NETSTREAM_LIMIT(MB)，将小鸡状态修改为"流量超限"，另外要有一个每个月开始将小鸡状态恢复
+//                            try {
+//                                if(summaryNetFlow >= LxcConstants.LXC_NETSTREAM_LIMIT){
+//                                    // 小鸡关机且不能让前端的开机操作响应；
+//                                    ShellUtils.execCmdAndReturnStatus(ShellDto.builder()
+//                                        .ip(superIp)
+//                                        .password(superLxc.getPassword())
+//                                        .way(superLxc.getWay())
+//                                        .modifyType("traffic_limit")
+//                                        .childName(childName)
+//                                        .build());
+//                                    // 网络流量超过限制
+////                                    lxcLxcVo.setLxcStatus(LxcStatus.TRAFFIC_LIMIT.getCode());
+//                                    lxcService.updateStatus(LxcStatus.TRAFFIC_LIMIT.getCode(),lxcLxcVo.getId());
+//
+//                                }
+//                            } catch (NumberFormatException e) {
+//                                System.err.println("Error parsing number: " + numberStr);
+//                            }
+//                    }
+//                    System.out.println("小鸡 " + childName + ":" + childIp + " 目前用了" + summaryNetFlow + unitStr + "流量");
+//                } catch (Exception e) {
+//                    e.printStackTrace();
+//                }
+//            }
+//        }
+//
+//    }
+
+    /**
+     * 流量单位换算 -> MB
      * @param numberStr
      * @param unitStr
      * @return
      */
-    private double unitUnify(String numberStr,String unitStr) {
+    private BigDecimal unitUnify(String numberStr,String unitStr) {
         // 将浮点数字符串解析为浮点数
-        double flowNum = Double.parseDouble(numberStr);
-        // 将kB、B、MB的单位化成GB
+//        double flowNum = Double.parseDouble(numberStr);
+        BigDecimal flowNum = new BigDecimal(numberStr);
+        // 将kB、B、GB的单位化成MB
         if("kb".equals(unitStr.toLowerCase())){
-            flowNum /= (1024*1024);
+            flowNum = flowNum.divide(new BigDecimal(1024),2, RoundingMode.HALF_UP);
         }else if("b".equals(unitStr.toLowerCase())){
-            flowNum /= (1024*1024*1024);
-        }else if("mb".equals(unitStr.toLowerCase())){
-            flowNum /= 1024;
+            flowNum = flowNum.divide(new BigDecimal(1024*1024),2,RoundingMode.HALF_UP);
+        }else if("gb".equals(unitStr.toLowerCase())){
+            flowNum = flowNum.multiply(new BigDecimal(1024));
         }
-        if(flowNum <= 0.001){
-            // 流量使用单位还是B或kB时，直接返回0，否则后面的小数在控制台显示出来可能很长
-            flowNum = 0;
-        }
+//        if(flowNum.compareTo(BigDecimal.valueOf(0.01)) == -1){
+//            // 流量使用单位还是B或kB时，直接返回0，否则后面的小数在控制台显示出来可能很长
+//            flowNum = new BigDecimal(0);
+//        }
         return flowNum;
     }
 
@@ -561,7 +708,9 @@ public class LxcJobService {
                     // 重设流量计数，需要把缓存中的“上次状态”值为流量超限TRAFFIC_LIMIT的key改回RUNNING
                     String keyOfLxcStatus = String.format(CacheNames.LXC_ORIGINAL_STATUS,lxcLxcVo.getId());
                     if(RedisUtils.hasKey(keyOfLxcStatus) && RedisUtils.getCacheObject(keyOfLxcStatus).equals(LxcStatus.TRAFFIC_LIMIT)) {
-                        RedisUtils.setCacheObject(keyOfLxcStatus,LxcStatus.RUNNING.getCode());
+//                        RedisUtils.setCacheObject(keyOfLxcStatus,LxcStatus.RUNNING.getCode());
+                        // 直接删掉这条缓存也可以
+                        RedisUtils.deleteObject(keyOfLxcStatus);
                     }
                 } catch (Exception e) {
                     e.printStackTrace();

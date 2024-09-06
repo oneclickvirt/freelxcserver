@@ -61,6 +61,14 @@ public class LxcLxcServiceImpl extends BaseService<LxcLxcMapper, LxcLxc> impleme
     private LxcSuperLxcServiceImpl lxcSuperLxcService;
 
 
+    @Override
+    public void updateTraffic(LxcLxcBo bo) {
+        LxcLxc lxc = new LxcLxc();
+        BeanUtils.copyProperties(bo,lxc);
+        baseMapper.updateTraffic(lxc.getId(),lxc.getLxcTraffic());
+
+    }
+
     /**
      * 查询小鸡信息
      */
@@ -146,6 +154,7 @@ public class LxcLxcServiceImpl extends BaseService<LxcLxcMapper, LxcLxc> impleme
         lqw.eq(StringUtils.isNotBlank(bo.getSuperDate()), LxcLxc::getSuperDate, bo.getSuperDate());
         lqw.eq(StringUtils.isNotBlank(bo.getSuperDead()), LxcLxc::getSuperDead, bo.getSuperDead());
         lqw.eq(StringUtils.isNotBlank(bo.getLxcStatus()), LxcLxc::getLxcStatus, bo.getLxcStatus());
+        lqw.eq(LxcLxc::getLxcTraffic, bo.getLxcTraffic());
         lqw.eq(StringUtils.isNotBlank(bo.getHostInterface()), LxcLxc::getHostInterface, bo.getHostInterface());
         lqw.eq(StringUtils.isNotBlank(bo.getIpv6Addr()), LxcLxc::getIpv6Addr, bo.getIpv6Addr());
         lqw.eq(bo.getState() != null, LxcLxc::getState, bo.getState());

@@ -13,11 +13,12 @@ import com.lxc.machine.domain.bo.LxcTrafficBo;
 import com.lxc.machine.domain.vo.LxcTrafficVo;
 import com.lxc.machine.mapper.LxcTrafficMapper;
 import com.lxc.machine.service.ILxcTrafficService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
 
 /**
  * 小鸡流量统计Service业务层处理
@@ -76,7 +77,6 @@ public class LxcTrafficServiceImpl extends BaseService<LxcTrafficMapper,LxcTraff
         validEntityBeforeSave(add);
         boolean flag = baseMapper.insert(add) > 0;
         if (flag) {
-
             bo.setLxcId(add.getLxcId());
         }
         return flag;

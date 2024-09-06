@@ -22,8 +22,8 @@
     <select id="queryAllLxc" resultMap="LxcQueueResult">
         select a.id,b.lxc_status lxcStatus,a.lxc_id,c.ip,b.child_name,c.name super_name,c.tag super_tag,b.ssh_port, a.end_time, a.create_by, a.create_time, a.update_by, a.update_time
         FROM lxc_queue a
-        LEFT JOIN lxc_lxc b on a.lxc_id = b.id
-        LEFT JOIN lxc_super_lxc c ON b.super_ip = c.ip
+        LEFT JOIN lxc_lxc_and_traffic b on a.lxc_id = b.id
+        LEFT JOIN lxc_and_incus_super_lxc c ON b.super_ip = c.ip
         <where>
             a.tg_id = #{tgId}
         </where>

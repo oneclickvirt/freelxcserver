@@ -3,11 +3,12 @@ package com.lxc.machine.domain.bo;
 import com.lxc.common.core.domain.BaseEntity;
 import com.lxc.common.core.validate.AddGroup;
 import com.lxc.common.core.validate.EditGroup;
-import java.util.Date;
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+
+import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.NotNull;
+import java.util.Date;
 
 /**
  * 小鸡流量统计业务对象 lxc_traffic
@@ -21,9 +22,9 @@ import lombok.EqualsAndHashCode;
 public class LxcTrafficBo extends BaseEntity {
 
     /**
-     * lxc_lxc小鸡表id
+     * lxc_lxc_and_traffic小鸡表id
      */
-    @NotNull(message = "lxc_lxc小鸡表id不能为空", groups = {EditGroup.class})
+    @NotNull(message = "lxc_lxc_and_traffic小鸡表id不能为空", groups = {EditGroup.class})
     private Long lxcId;
 
     /**

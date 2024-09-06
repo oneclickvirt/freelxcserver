@@ -71,7 +71,8 @@ public class SysRegisterService {
             throw new UserException("user.register.save.error", username);
         }
 
-        String tgUserName = BotUtils.getUserName(LxcBotConstants.CHAT_ID, Long.valueOf(tgId));
+//        String tgUserName = BotUtils.getUserName(LxcBotConstants.CHAT_ID, Long.valueOf(tgId));
+        String tgUserName = BotUtils.getUserName(LxcConstants.CHAT_ID, Long.valueOf(tgId));
         if (tgUserName == null) throw new UserException("user.tg.noname");
 
         LxcUser user = new LxcUser();

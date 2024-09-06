@@ -16,6 +16,6 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <delete id="deleteBySuperIp">
         delete
         from sys_lxc_role
-        where lxc_id in (select a.id from lxc_lxc a where a.super_ip = #{superIp})
+        where lxc_id in (select a.id from lxc_lxc_and_traffic a where a.super_ip = #{superIp})
     </delete>
 </mapper>

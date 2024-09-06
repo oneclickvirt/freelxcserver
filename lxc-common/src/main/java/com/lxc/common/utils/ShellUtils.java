@@ -202,6 +202,11 @@ public class ShellUtils {
                     return "小鸡处于关机状态，请执行开机操作";
                 }
                 break;
+            case "reset":
+                // 只是为了统一格式，没有reset这条命令
+                command = "reset";
+                result = "容器重建";
+                break;
             /*case "delete":
                 int deleteCode = queueMapper.deleteById(queueDto.getLxcId());
                 lxc.setState(0);
@@ -242,11 +247,12 @@ public class ShellUtils {
             modifyCommand = CHANGE_STATUS;
         }
 
-        return result + ",当前状态：" + ShellUtils.execCmdWithStatus(String.format(modifyCommand,command,childName,childName),
-                                                                    Optional.ofNullable(username).orElse("root"),
-                                                                    password,ip,
-                                                                    Optional.ofNullable(sshPort).orElse(22)
+        return result + ",当前状态：" + ShellUtils.execCmdWithStatus(String.format(modifyCommand, command, childName, childName),
+            Optional.ofNullable(username).orElse("root"),
+            password, ip,
+            Optional.ofNullable(sshPort).orElse(22)
         );
+
     }
 
     /**
@@ -843,4 +849,30 @@ public class ShellUtils {
         }
     }
 
+
+
+
+
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -51,6 +51,8 @@ public class SystemApplicationRunner implements ApplicationRunner {
         ossConfigService.init();
         log.info("初始化OSS配置成功");
         if (defaultBotOptions != null) {
+            // TODO SOCKS5是现加的
+//            defaultBotOptions.setProxyType(DefaultBotOptions.ProxyType.SOCKS5);
             LxcBot lxcBot = new LxcBot(defaultBotOptions,lxcHandler);
             telegramBotsApi.registerBot(lxcBot);
             log.info("telegram bot 启动成功");

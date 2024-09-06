@@ -7,9 +7,11 @@ public interface LxcConstants {
     String INCUS_PORT = "9969";
 
     String BOOT_NAME = "lxc_testing_bot";
+//    String BOOT_NAME = "hiyaa2044_bot";
     String BOOT_TOKEN = "5381858832:AAG_M5zpe4qYAV0PDnPuatypmVa7Wsd4qpQ";
 
-    String REG_BOOT_TOKEN = "5381858832:AAG_M5zpe4qYAV0PDnPuatypmVa7Wsd4qpQ";
+//    String REG_BOOT_TOKEN = "5381858832:AAG_M5zpe4qYAV0PDnPuatypmVa7Wsd4qpQ";
+//    String BOOT_TOKEN = "7267680854:AAGeTeoHg6QfBd0bxhabuNj5hsoaTsI1Q9o";
 
     String CHAT_ID = "-1001474554890";
 

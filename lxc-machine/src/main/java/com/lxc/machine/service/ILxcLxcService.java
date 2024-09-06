@@ -22,6 +22,10 @@ import java.util.function.BiFunction;
  * @date 2022-10-11
  */
 public interface ILxcLxcService extends IBaseService<LxcLxc> {
+    /**
+     * 更新流量使用量
+     */
+    void updateTraffic(LxcLxcBo bo);
 
     /**
      * 查询小鸡信息

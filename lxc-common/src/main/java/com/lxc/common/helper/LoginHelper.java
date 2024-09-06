@@ -44,7 +44,7 @@ public class LoginHelper {
     /**
      * 登录系统 基于 设备类型
      * 针对相同用户体系不同设备
-     *
+     * 用Satoken辅助验证登录
      * @param loginUser 登录用户信息
      */
     public static void loginByDevice(LoginUser loginUser, DeviceType deviceType) {

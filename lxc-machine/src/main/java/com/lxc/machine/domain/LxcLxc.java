@@ -9,6 +9,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -19,7 +20,7 @@ import java.util.List;
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
-@TableName("lxc_lxc")
+@TableName("lxc_lxc_and_traffic")
 @Accessors(chain = true)
 public class LxcLxc extends BaseEntity {
 
@@ -81,6 +82,11 @@ public class LxcLxc extends BaseEntity {
      * 小鸡状态
      */
     private String lxcStatus;
+
+    /**
+     * 小鸡累积使用流量
+     */
+    private BigDecimal lxcTraffic;
 
     /**
      * 网卡

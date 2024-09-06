@@ -17,19 +17,24 @@ import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 public class BotConfig {
 
 	// 梯子的IP，我的是本地的
-    public static final String proxyHost = "127.0.0.1";
+//    public static final String proxyHost = "127.0.0.1";
+    public static final String proxyHost = "47.245.40.12";
     // 本地监听的端口
-    public static final int proxyPort = 10801;
+//    public static final int proxyPort = 10801;
+//    public static final int proxyPort = 28331;
+//    public static final int proxyPort = 19599;
+    public static final int proxyPort = 27749;
 
     @Bean
     @ConditionalOnProperty(name = "bot.enabled", havingValue = "true")
     public DefaultBotOptions defaultBotOptions() {
-        /*DefaultBotOptions botOptions = new DefaultBotOptions();
+        DefaultBotOptions botOptions = new DefaultBotOptions();
         botOptions.setProxyHost(proxyHost);
         botOptions.setProxyPort(proxyPort);
         //ProxyType是个枚举
-        botOptions.setProxyType(DefaultBotOptions.ProxyType.SOCKS5);*/
-        return new DefaultBotOptions();
+        botOptions.setProxyType(DefaultBotOptions.ProxyType.SOCKS5);
+//        return new DefaultBotOptions();
+        return botOptions;
     }
 
     @Bean

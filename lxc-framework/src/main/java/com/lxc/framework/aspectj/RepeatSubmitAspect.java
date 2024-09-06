@@ -31,6 +31,7 @@ import java.util.Map;
 
 /**
  * 防止重复提交(参考美团GTIS防重系统)
+ * 用redis来实现防止表单重复提交
  *
  * @author Lion Li
  */
@@ -64,13 +65,18 @@ public class RepeatSubmitAspect {
         submitKey = SecureUtil.md5(submitKey + ":" + nowParams);
         // 唯一标识（指定key + url + 消息头）
         String cacheRepeatKey = CacheConstants.REPEAT_SUBMIT_KEY + url + submitKey;
+        // 缓存还没写入时，返回null；已有缓存会返回缓存结果
         String key = RedisUtils.getCacheObject(cacheRepeatKey);
         if (key == null) {
+            // 什么内容都不写入，但设置过期时间，相当于设置了一个标记表单重复提交的标记
             RedisUtils.setCacheObject(cacheRepeatKey, "", Duration.ofMillis(interval));
+            // ThreadLocal存一份唯一标识
             KEY_CACHE.set(cacheRepeatKey);
-        } else {
+        } else { // 重复提交了
             String message = repeatSubmit.message();
+            // 以免注解里的message参数被改动了
             if (StringUtils.startsWith(message, "{") && StringUtils.endsWith(message, "}")) {
+                // 获取国际化中预设的键的值
                 message = MessageUtils.message(StringUtils.substring(message, 1, message.length() - 1));
             }
             throw new ServiceException(message);

@@ -4,13 +4,13 @@ import com.alibaba.excel.annotation.ExcelIgnoreUnannotated;
 import com.alibaba.excel.annotation.ExcelProperty;
 import com.lxc.common.annotation.ExcelDictFormat;
 import com.lxc.common.convert.ExcelDictConvert;
-//import com.lxc.machine.domain.LxcQueue;
 import com.lxc.machine.domain.LxcQueue;
 import lombok.Data;
-import org.relxd.lxd.model.Context;
 
+import java.math.BigDecimal;
 import java.util.Date;
-import java.util.Objects;
+
+//import com.lxc.machine.domain.LxcQueue;
 
 
 /**
@@ -104,6 +104,13 @@ public class LxcLxcVo {
     @ExcelProperty(value = "小鸡状态 1是占用 0是空闲", converter = ExcelDictConvert.class)
     @ExcelDictFormat(dictType = "lxc_status")
     private String lxcStatus;
+
+    /**
+     * 小鸡累积使用流量
+     */
+    @ExcelProperty(value = "流量使用量")
+    @ExcelDictFormat(dictType = "lxc_traffic")
+    private BigDecimal lxcTraffic;
 
     /**
      * 网卡

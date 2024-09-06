@@ -30,16 +30,17 @@ import com.lxc.machine.mapper.LxcQueueMapper;
 import com.lxc.machine.service.ILxcLxcService;
 import com.lxc.machine.service.ILxcQueueService;
 import com.lxc.machine.service.ILxcUserService;
-import java.time.Duration;
-import java.util.List;
-import java.util.function.Supplier;
-import javax.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import javax.servlet.http.HttpServletRequest;
+import java.time.Duration;
+import java.util.List;
+import java.util.function.Supplier;
 
 /**
  * 登录校验方法
@@ -141,6 +142,7 @@ public class SysLoginService {
         boolean captchaEnabled = configService.selectCaptchaEnabled();
         // 验证码开关
         if (captchaEnabled) {
+            // 如果验证码校验不过 validateCaptcha会直接抛出异常
             validateCaptcha(username, code, uuid, request);
         }
         SysUser user = loadUserByUsername(username);
@@ -228,8 +230,10 @@ public class SysLoginService {
     public void validateCaptcha(String username, String code, String uuid, HttpServletRequest request) {
         String verifyKey = CacheConstants.CAPTCHA_CODE_KEY + StringUtils.defaultString(uuid, "");
         String captcha = RedisUtils.getCacheObject(verifyKey);
+        // 拿到验证码的内容后就删掉缓存
         RedisUtils.deleteObject(verifyKey);
         if (captcha == null) {
+            // 验证码超时失效
             asyncService.recordLogininfor(username, Constants.LOGIN_FAIL, MessageUtils.message("user.jcaptcha.expire"), request);
             throw new CaptchaExpireException();
         }
@@ -365,7 +369,7 @@ public class SysLoginService {
                 throw new UserException(loginType.getRetryLimitCount(), errorNumber);
             }
         }
-
+        // 排除上面的登录失败情形，就视为登录成功
         // 登录成功 清空错误次数
         RedisUtils.deleteObject(errorKey);
     }

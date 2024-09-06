@@ -19,7 +19,7 @@ public interface LxcQueueMapper extends BaseMapperPlus<LxcQueueMapper, LxcQueue,
 
     /**
      * 根据小鸡lxcId查找指定小鸡队列
-     * @param lxcId
+     * @param id
      * @return
      */
     @Select("select * from lxc_queue queue where lxc_id=#{id}")

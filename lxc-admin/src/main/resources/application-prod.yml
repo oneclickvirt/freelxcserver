@@ -5,7 +5,7 @@ spring.servlet.multipart.location: /lxc/server/temp
 spring.boot.admin.client:
   # 增加客户端开关
   enabled: true
-  url: http://localhost:9090/monitor/admin
+  url: http://localhost:9200/monitor/admin
   instance:
     service-host-type: IP
   username: lxc
@@ -52,12 +52,13 @@ spring:
           # jdbc 所有参数配置参考 https://lionli.blog.csdn.net/article/details/122018562
           # rewriteBatchedStatements=true 批处理优化 大幅提升批量插入更新删除性能(对数据库有性能损耗 使用批量操作应考虑性能问题)
 #          url: jdbc:mysql://localhost:3306/lxc_plus?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=true&serverTimezone=GMT%2B8&autoReconnect=true&rewriteBatchedStatements=true
-          url: jdbc:mysql://localhost:3306/lxc_plus?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=true&serverTimezone=GMT%2B8&autoReconnect=true&rewriteBatchedStatements=true
+#          url: jdbc:mysql://localhost:3306/lxc_plus?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=true&serverTimezone=GMT%2B8&autoReconnect=true&rewriteBatchedStatements=true
+          url: jdbc:mysql://94.154.37.20:3306/lxc_plus?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=true&serverTimezone=GMT%2B8&autoReconnect=true&rewriteBatchedStatements=true
 
 #          username: lxc_plus
 #          password: Wn4J3t7GhJxxabsb
           username: root
-          password: rootroot
+          password: "123456"
         # 从库数据源
         slave:
           lazy: true
@@ -132,13 +133,14 @@ spring.datasource.druid:
 spring:
   redis:
     # 地址
-    host: localhost
+#    host: localhost
+    host: 94.154.37.20
     # 端口，默认为6379
     port: 6379
     # 数据库索引
     database: 8
     # 密码(如没有密码请注释掉)
-    # password:
+    password: "123456"
     # 连接超时时间
     timeout: 10s
     # 是否开启ssl

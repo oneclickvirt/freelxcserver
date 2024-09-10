@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-    <property name="log.path" value="logs"/>
+<!--    <property name="log.path" value="logs"/>-->
+<!--    改到服务器的日志存放路径-->
+    <property name="log.path" value="/opt/project/freelxc/logs/"/>
     <property name="console.log.pattern"
               value="%red(%d{yyyy-MM-dd HH:mm:ss}) %green([%thread]) %highlight(%-5level) %boldMagenta(%logger{36}%n) - %msg%n"/>
     <property name="log.pattern" value="%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"/>

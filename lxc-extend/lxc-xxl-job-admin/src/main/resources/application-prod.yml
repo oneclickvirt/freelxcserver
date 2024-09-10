@@ -3,7 +3,7 @@ spring.boot.admin.client:
   # 增加客户端开关
   enabled: true
   # 设置 Spring Boot Admin Server 地址
-  url: http://localhost:9090/monitor/admin
+  url: http://localhost:9200/monitor/admin
   instance:
     service-host-type: IP
   username: lxc
@@ -18,7 +18,7 @@ spring:
 #    username: lxc_plus
 #    password: Wn4J3t7GhJxxabsb
     username: root
-    password: rootroot
+    password: 123456
     hikari:
       auto-commit: true
       connection-test-query: SELECT 1

@@ -57,6 +57,7 @@ public class RateLimiterAspect {
             // 获取客户端实例id
             stringBuffer.append(RedisUtils.getClient().getId()).append("-");
         }
+        // 获取请求调用的类名及方法名，跟ip拼接在一起
         MethodSignature signature = (MethodSignature) point.getSignature();
         Method method = signature.getMethod();
         Class<?> targetClass = method.getDeclaringClass();

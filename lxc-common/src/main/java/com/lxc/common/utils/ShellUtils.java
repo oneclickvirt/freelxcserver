@@ -299,10 +299,10 @@ public class ShellUtils {
      * @param user
      * @param passwd
      * @param host
-     * @param post
+     * @param port
      * @throws Exception
      */
-    public static Session connect(String user,String passwd,String host,int post) throws Exception {
+    public static Session connect(String user,String passwd,String host,int port) throws Exception {
 
         /*session.setPassword(passwd);
         java.util.Properties config = new java.util.Properties();
@@ -311,7 +311,7 @@ public class ShellUtils {
         session.setConfig(config);*/
         Session session = null;
         try {
-            session = JschUtil.getSession(host,post,user,passwd);
+            session = JschUtil.getSession(host,port,user,passwd);
 //            session.connect(50000);
         } catch (Exception e) {
             throw new Exception("连接远程端口无效或用户名密码错误");
@@ -616,8 +616,8 @@ public class ShellUtils {
         //1、利用JschUtil获取会话连接
         Session session = JschUtil.getSession(sshDto.getIp(), sshDto.getSshPort(), sshDto.getUsername(), sshDto.getPassword());
         System.out.println("initLxcSession:" + session);
-        // 小鸡名称 内存大小 硬盘大小 SSH端口 外网起端口 外网止端口
-        //  /root/modify.sh test2 30000 30001 30005 300 300
+        // 小鸡名称 内存大小 硬盘大小 SSH端口 外网起端口 外网止端口 ipv6地址
+        //  /root/modify.sh test2 30000 30001 30005 300 300 ipv6地址
         String format = String.format(
             INIT_LXC,
             sshDto.getChildName(),

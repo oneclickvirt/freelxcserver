@@ -180,10 +180,12 @@ public class LxcQueueController extends BaseController {
         }
 
         LxcSuperLxc superLxc = lxcSuperLxcService.getById(lxcSuperId);
+        // 母鸡可领取状态是“母鸡列表”中的“是否可领取小鸡”开关设置
         String superStatus = superLxc.getSuperStatus();
         if (StringUtils.equals(superStatus, LxcConstants.LXC_SUPER_DISABLED)) {
             return R.fail("该母鸡已禁止自助领取");
         }
+        // 过期标志
         if (superLxc.getExpireFlag().equals(LxcConstants.LXC_SUPER_EXPIRED)) {
             RedisUtils.setAtomicValue(keyOfFree, 0);
             return R.fail("该母鸡已过期，请联系站长");
@@ -539,7 +541,7 @@ public class LxcQueueController extends BaseController {
         for (Long id : ids) {
             LxcQueue lxcQueue = queueMapper.selectOne(
                 new QueryWrapper<LxcQueue>()
-                    .select("lxc_id")
+//                    .select("lxc_id")
                     .eq("id", id)
             );
             LxcLxc lxcLxc = new LxcLxc();

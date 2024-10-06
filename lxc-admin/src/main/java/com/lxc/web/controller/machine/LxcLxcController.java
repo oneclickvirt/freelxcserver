@@ -107,9 +107,11 @@ public class LxcLxcController extends BaseController {
             return false;
         }
         QueryWrapper<LxcSuperLxc> queryWrapper = new QueryWrapper<>();
-        queryWrapper.select("password","way").
-            eq("ip", lxcLxcVo.getSuperIp())
+        queryWrapper.select("password","way")
+            .eq("ip", lxcLxcVo.getSuperIp())
             .last("limit 1");
+//        queryWrapper.eq("ip", lxcLxcVo.getSuperIp())
+//            .last("limit 1");
         LxcSuperLxcVo superLxc = superLxcMapper.selectVoOne(queryWrapper);
         if (superLxc == null) {
             return false;
@@ -170,8 +172,10 @@ public class LxcLxcController extends BaseController {
         TableDataInfo<LxcLxcVo> pageList = lxcLxcService.queryPageList(bo, pageQuery);
         pageList.getRows().parallelStream().forEach(lxcLxcVo -> {
             QueryWrapper<LxcQueue> queryWrapper = new QueryWrapper<>();
-            queryWrapper.select("tg_id")
-                .eq("lxc_id", lxcLxcVo.getId())
+//            queryWrapper.select("tg_id")
+//                .eq("lxc_id", lxcLxcVo.getId())
+//                .last("limit 1");
+            queryWrapper.eq("lxc_id", lxcLxcVo.getId())
                 .last("limit 1");
             LxcQueueVo queue = queueMapper.selectVoOne(queryWrapper);
             lxcLxcVo.setLxcQueueVo(queue);
@@ -342,8 +346,10 @@ public class LxcLxcController extends BaseController {
         }
         LxcLxc lxclxc = lxcLxcService.getById(lxcId);
         QueryWrapper<LxcSuperLxc> queryWrapper = new QueryWrapper<>();
-        queryWrapper.select("password","way").
-            eq("ip", lxclxc.getSuperIp())
+//        queryWrapper.select("password","way").
+//            eq("ip", lxclxc.getSuperIp())
+//            .last("limit 1");
+        queryWrapper.eq("ip", lxclxc.getSuperIp())
             .last("limit 1");
         //查询的表由lxc_super_lxc改成lxc_and_incus_super_lxc
         LxcSuperLxcVo superLxc = superLxcMapper.selectVoOne(queryWrapper);

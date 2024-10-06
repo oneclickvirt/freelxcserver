@@ -77,7 +77,8 @@ public class LxcJobService {
                         int index = -1;
                         for (int i = 0; i < size; i++) {
 //                            String lxcPort = checkWhichPortForLxd(superIp);
-                            LxcSuperLxc superLxc = lxcSuperLxcService.getOne(new QueryWrapper<LxcSuperLxc>().select("way").eq("ip", superIp));
+//                            LxcSuperLxc superLxc = lxcSuperLxcService.getOne(new QueryWrapper<LxcSuperLxc>().select("way").eq("ip", superIp));
+                            LxcSuperLxc superLxc = lxcSuperLxcService.getOne(new QueryWrapper<LxcSuperLxc>().eq("ip", superIp).orderBy(true, true, "create_time").last("limit 1"));
                             String way = superLxc.getWay();
                             System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>  " + way);
 //                            String lxcPort = "lxd".equals(way) ? LxcConstants.LXD_PORT : LxcConstants.INCUS_PORT;
@@ -105,6 +106,8 @@ public class LxcJobService {
                             ShellDto shellDto = LxcQueueServiceImpl.prepareCreateShellDto(superLxcVo, lxc);
                             XxlJobHelper.log("小鸡创建信息：{}", shellDto);
                             log.info("小鸡创建信息：{}", shellDto);
+                            // 这里在linux服务器上调用modify.sh来初始化小鸡状态
+
                             ShellUtils.Shell shell = ShellUtils.initLxc(shellDto);
                             XxlJobHelper.log("小鸡{}初始化命令：{}", lxc.getChildName(), shell.getCmd());
                             log.info("小鸡{}初始化命令：{}", lxc.getChildName(), shell.getCmd());
@@ -152,48 +155,48 @@ public class LxcJobService {
      * 已被initLxc取代
      */
 //    @XxlJob("createLxc")
-    public void createLxc() {
-        List<LxcLxcVo> lxcPendingList = lxcService.getLxcList(
-            new QueryWrapper<LxcLxc>().eq("lxc_status", LxcStatus.WAITING_FOR_PROCESS.getCode())
-                .orderBy(true, true, "create_time")
-        );
-        XxlJobHelper.log("处于未创建状态的小鸡有：{}个", lxcPendingList.size());
-        lxcPendingList.stream()
-            .collect(Collectors.groupingBy(LxcLxcVo::getSuperIp))
-            .forEach(
-                (k, lxcVoList) -> {
-                    LxcLxcVo lxc = lxcVoList.get(0);
-                    long pendingCount = lxcService.count(
-                        new QueryWrapper<LxcLxc>()
-                            .eq("super_ip", lxc.getSuperIp())
-                            .and(i -> i.eq("lxc_status", LxcStatus.PENDING.getCode()).or().eq("lxc_status", LxcStatus.FAILED_TO_CREATE.getCode()))
-                    );
-                    // 一次只能创建一个小鸡
-                    if (pendingCount == 0) {
-                        try {
-                            XxlJobHelper.log("开始创建小鸡：{}", lxc.getChildName());
-                            LxcSuperLxc superLxc = lxcSuperLxcService.getOne(new QueryWrapper<LxcSuperLxc>().eq("ip", k));
-                            LxcSuperLxcVo superLxcVo = BeanCopyUtils.copy(superLxc, LxcSuperLxcVo.class);
-                            assert superLxcVo != null;
-                            ShellDto shellDto = LxcQueueServiceImpl.prepareCreateShellDto(superLxcVo, lxc);
-                            XxlJobHelper.log("小鸡创建信息：{}", shellDto);
-                            String format = ShellUtils.createLxc(shellDto);
-                            XxlJobHelper.log("小鸡{}创建命令：{}", lxc.getChildName(), format);
-                            LxcLxcBo temp = new LxcLxcBo();
-                            temp.setLxcStatus(LxcStatus.PENDING.getCode());
-                            temp.setId(lxc.getId());
-                            lxcService.updateByBoForce(temp);
-                        } catch (Exception e) {
-                            LxcLxcBo temp = new LxcLxcBo();
-                            temp.setLxcStatus(LxcStatus.FAILED_TO_CREATE.getCode());
-                            temp.setId(lxc.getId());
-                            lxcService.updateByBoForce(temp);
-                            XxlJobHelper.log(e);
-                        }
-                    }
-                }
-            );
-    }
+//    public void createLxc() {
+//        List<LxcLxcVo> lxcPendingList = lxcService.getLxcList(
+//            new QueryWrapper<LxcLxc>().eq("lxc_status", LxcStatus.WAITING_FOR_PROCESS.getCode())
+//                .orderBy(true, true, "create_time")
+//        );
+//        XxlJobHelper.log("处于未创建状态的小鸡有：{}个", lxcPendingList.size());
+//        lxcPendingList.stream()
+//            .collect(Collectors.groupingBy(LxcLxcVo::getSuperIp))
+//            .forEach(
+//                (k, lxcVoList) -> {
+//                    LxcLxcVo lxc = lxcVoList.get(0);
+//                    long pendingCount = lxcService.count(
+//                        new QueryWrapper<LxcLxc>()
+//                            .eq("super_ip", lxc.getSuperIp())
+//                            .and(i -> i.eq("lxc_status", LxcStatus.PENDING.getCode()).or().eq("lxc_status", LxcStatus.FAILED_TO_CREATE.getCode()))
+//                    );
+//                    // 一次只能创建一个小鸡
+//                    if (pendingCount == 0) {
+//                        try {
+//                            XxlJobHelper.log("开始创建小鸡：{}", lxc.getChildName());
+//                            LxcSuperLxc superLxc = lxcSuperLxcService.getOne(new QueryWrapper<LxcSuperLxc>().eq("ip", k));
+//                            LxcSuperLxcVo superLxcVo = BeanCopyUtils.copy(superLxc, LxcSuperLxcVo.class);
+//                            assert superLxcVo != null;
+//                            ShellDto shellDto = LxcQueueServiceImpl.prepareCreateShellDto(superLxcVo, lxc);
+//                            XxlJobHelper.log("小鸡创建信息：{}", shellDto);
+//                            String format = ShellUtils.createLxc(shellDto);
+//                            XxlJobHelper.log("小鸡{}创建命令：{}", lxc.getChildName(), format);
+//                            LxcLxcBo temp = new LxcLxcBo();
+//                            temp.setLxcStatus(LxcStatus.PENDING.getCode());
+//                            temp.setId(lxc.getId());
+//                            lxcService.updateByBoForce(temp);
+//                        } catch (Exception e) {
+//                            LxcLxcBo temp = new LxcLxcBo();
+//                            temp.setLxcStatus(LxcStatus.FAILED_TO_CREATE.getCode());
+//                            temp.setId(lxc.getId());
+//                            lxcService.updateByBoForce(temp);
+//                            XxlJobHelper.log(e);
+//                        }
+//                    }
+//                }
+//            );
+//    }
 
 
     /**
@@ -242,7 +245,7 @@ public class LxcJobService {
                     List<String> out = ShellUtils.execCmdOutList(createCommand, ShellUtils.getSession(shellDto));
                     // TODO
                     System.out.println(out.toString());
-
+                    // 这里获取不到小鸡密码也会导致最后创建失败
                     if (out.size() == 2 && StringUtils.equals(out.get(0), "true")) {
                         LxcLxcBo temp = new LxcLxcBo();
                         temp.setLxcStatus(LxcStatus.RUNNING.getCode());

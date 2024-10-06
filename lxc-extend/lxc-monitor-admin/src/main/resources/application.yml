@@ -20,6 +20,10 @@ spring:
 
 --- # Actuator 监控端点的配置项
 management:
+  health:
+    db:
+      enabled: true
+      timeout: 5s
   endpoints:
     web:
       exposure:
@@ -30,12 +34,14 @@ management:
     logfile:
       external-file: ./logs/lxc-monitor-admin.log
 
+
 --- # 监控配置
 spring.boot.admin.client:
   # 增加客户端开关
   enabled: true
   # 设置 Spring Boot Admin Server 地址
   url: http://localhost:9090/monitor/admin
+#  url: http://94.154.37.20:9090/monitor/admin
   instance:
     service-host-type: IP
   username: lxc

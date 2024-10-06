@@ -3,6 +3,7 @@ spring.boot.admin.client:
   # 增加客户端开关
   enabled: false
   url: http://localhost:9200/monitor/admin
+#  url: http://94.154.37.20:9200/monitor/admin
   instance:
     service-host-type: IP
   username: lxc
@@ -14,6 +15,7 @@ xxl.job:
   enabled: true
   # 调度中心地址：如调度中心集群部署存在多个地址则用逗号分隔。
   admin-addresses: http://localhost:9100/xxl-job-admin
+#  admin-addresses: http://94.154.37.20:9100/xxl-job-admin
   # 执行器通讯TOKEN：非空时启用
   access-token: xxl-job
   executor:
@@ -24,7 +26,8 @@ xxl.job:
     # 执行器注册：默认IP:PORT
     address:
     # 执行器IP：默认自动获取IP
-    ip: localhost
+#    ip: localhost
+    ip: 94.154.37.20
     # 执行器运行日志文件存储磁盘路径
     logpath: ./logs/xxl-job
     # 执行器日志文件保存天数：大于3生效
@@ -50,10 +53,12 @@ spring:
           # rewriteBatchedStatements=true 批处理优化 大幅提升批量插入更新删除性能(对数据库有性能损耗 使用批量操作应考虑性能问题)
 #          url: jdbc:mysql://192.168.1.10:3306/lxc_plus_1109?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=true&serverTimezone=GMT%2B8&autoReconnect=true&rewriteBatchedStatements=true
           url: jdbc:mysql://localhost:3306/lxc_plus?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=true&serverTimezone=GMT%2B8&autoReconnect=true&rewriteBatchedStatements=true
+#          url: jdbc:mysql://94.154.37.20:3306/lxc_plus?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=true&serverTimezone=GMT%2B8&autoReconnect=true&rewriteBatchedStatements=true
 #          url: jdbc:mysql://3.37.94.113:55456/lxc_plus?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=true&serverTimezone=GMT%2B8&autoReconnect=true&rewriteBatchedStatements=true
           username: root
 #          password: 12345678
           password: rootroot
+#          password: 8fc46b18e6aba430
 #          password: 982968053
         # 从库数据源
 #        slave:
@@ -132,12 +137,13 @@ spring:
 #    host: 192.168.1.102
 #    host: 117.174.77.201
     host: localhost
+#    host: 94.154.37.20
     # 端口，默认为6379
     port: 6379
     # 数据库索引
     database: 8
     # 密码(如没有密码请注释掉)
-    # password:
+#    password: "123456"
     # 连接超时时间
     timeout: 20s
     # 是否开启ssl

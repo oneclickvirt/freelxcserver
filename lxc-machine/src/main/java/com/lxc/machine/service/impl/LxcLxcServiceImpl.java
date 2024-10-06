@@ -84,7 +84,9 @@ public class LxcLxcServiceImpl extends BaseService<LxcLxcMapper, LxcLxc> impleme
     public TableDataInfo<LxcLxcVo> queryPageList(LxcLxcBo bo, PageQuery pageQuery) {
         LambdaQueryWrapper<LxcLxc> lqw = buildQueryWrapper(bo);
         lqw.last("order by lxc_status,state,super_ip,id desc");
-        Page<LxcLxcVo> result = baseMapper.selectVoPage(pageQuery.build(), lqw);
+        Page<LxcLxc> page = pageQuery.build();
+        Page<LxcLxcVo> result = baseMapper.selectVoPage(page, lqw);
+
         return TableDataInfo.build(result);
     }
 
@@ -154,7 +156,7 @@ public class LxcLxcServiceImpl extends BaseService<LxcLxcMapper, LxcLxc> impleme
         lqw.eq(StringUtils.isNotBlank(bo.getSuperDate()), LxcLxc::getSuperDate, bo.getSuperDate());
         lqw.eq(StringUtils.isNotBlank(bo.getSuperDead()), LxcLxc::getSuperDead, bo.getSuperDead());
         lqw.eq(StringUtils.isNotBlank(bo.getLxcStatus()), LxcLxc::getLxcStatus, bo.getLxcStatus());
-        lqw.eq(LxcLxc::getLxcTraffic, bo.getLxcTraffic());
+//        lqw.eq(LxcLxc::getLxcTraffic, bo.getLxcTraffic());
         lqw.eq(StringUtils.isNotBlank(bo.getHostInterface()), LxcLxc::getHostInterface, bo.getHostInterface());
         lqw.eq(StringUtils.isNotBlank(bo.getIpv6Addr()), LxcLxc::getIpv6Addr, bo.getIpv6Addr());
         lqw.eq(bo.getState() != null, LxcLxc::getState, bo.getState());

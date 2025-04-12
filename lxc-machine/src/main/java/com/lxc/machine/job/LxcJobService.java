@@ -128,29 +128,6 @@ public class LxcJobService {
     }
 
     /**
-     * 获取lxc监听的端口
-     * @param superIp
-     * @return
-     */
-
-    public String checkWhichPortForLxd(String superIp){
-        List<String> list = new ArrayList<>();
-        LxcSuperLxcVo lxcSuperLxcVo = lxcSuperLxcService.queryByIp(superIp);
-        String command = String.format("lsof -i:8443");
-        try {
-            list = ShellUtils.execCmdOutList(command,"root",lxcSuperLxcVo.getPassword(),lxcSuperLxcVo.getIp(),Integer.valueOf(lxcSuperLxcVo.getSshPort()));
-            System.out.println(list.toString());
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        if(list.size() == 0){
-            return "9969";
-        }else{
-            return "8443";
-        }
-    }
-
-    /**
      * 定时提交未创建的小鸡
      * 已被initLxc取代
      */
@@ -326,7 +303,7 @@ public class LxcJobService {
     @XxlJob("handleExpiredSuperLxc")
     public void handleExpiredSuperLxc() {
         List<LxcSuperLxc> expiredList = lxcSuperLxcService.list(
-            // 查询 母鸡过期时间(dead)比现在日期靠后的记录
+            // 查询 母鸡过期时间(dead)在现在日期之前的记录
             new QueryWrapper<LxcSuperLxc>().lt("dead", DateUtils.getDate())
                 .ne("expire_flag", LxcConstants.LXC_SUPER_EXPIRED)
         );
@@ -759,6 +736,15 @@ public class LxcJobService {
             return null; // 或者返回一个默认值，取决于你的需求
         }
     }
+
+    /**
+     * TODO 检查提供容器的服务器是否不再提供lxc或incus服务
+     * @throws Exception
+     */
+//    @XxlJob("checkValidSuperLxc")
+//    public void checkValidSuperLxc() {
+//        lxcSuperLxcService.getAliveLxcSuperLxcList();
+//    }
 
 
     @Test

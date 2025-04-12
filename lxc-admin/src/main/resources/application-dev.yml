@@ -26,8 +26,8 @@ xxl.job:
     # 执行器注册：默认IP:PORT
     address:
     # 执行器IP：默认自动获取IP
-#    ip: localhost
-    ip: 94.154.37.20
+    ip: localhost
+#    ip: 94.154.37.20
     # 执行器运行日志文件存储磁盘路径
     logpath: ./logs/xxl-job
     # 执行器日志文件保存天数：大于3生效
@@ -136,14 +136,15 @@ spring:
     # 地址
 #    host: 192.168.1.102
 #    host: 117.174.77.201
-    host: localhost
+#    host: localhost
+    host: 47.237.120.189
 #    host: 94.154.37.20
     # 端口，默认为6379
     port: 6379
     # 数据库索引
     database: 8
     # 密码(如没有密码请注释掉)
-#    password: "123456"
+    password: "redis_EzK8JRPJsbdna5HQ"
     # 连接超时时间
     timeout: 20s
     # 是否开启ssl

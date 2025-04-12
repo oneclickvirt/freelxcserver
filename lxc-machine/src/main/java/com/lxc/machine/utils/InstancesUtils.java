@@ -22,8 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-
-import static org.wildfly.common.Assert.assertTrue;
+import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
@@ -52,11 +51,44 @@ public class InstancesUtils {
      * @param lxcApplyBo
      * @throws Exception
      */
-    public void postInstances(LxcLxc lxc, LxcSuperLxc superLxc, LxcApplyBo lxcApplyBo) throws Exception {
+//    public void postInstances(LxcLxc lxc, LxcSuperLxc superLxc, LxcApplyBo lxcApplyBo) throws Exception {
+//        String target = null;
+//        final String architecture = "x86_64";
+//        final String type = "container";
+////        final String fingerprint = "f1335f08a2567d068405bf0165d942e6bf06a22c598f0e58e689e9e3e303432e";
+//        final String nameOfContainer = lxc.getChildName();
+//
+//        SourceConfigBuilder sourceConfigBuilder = prepareSourceConfigBuilder(superLxc, lxcApplyBo.getMirrorImage());
+//        DevicesRoot devicesRoot = prepareDevicesRoot(superLxc);
+//        InstanceConfigBuilder configBuilder = prepareInstanceConfigBuilder(superLxc);
+//
+//        List<String> profiles = new ArrayList<>();
+//        profiles.add("default");
+//
+//        CreateInstancesRequest createInstancesRequest = populateCreateInstancesRequest(devicesRoot, sourceConfigBuilder.asMap(), type, profiles, architecture, nameOfContainer, configBuilder.asMap(), false);
+//
+////        BackgroundOperationResponse actualCreateInstancesResponse = this.instancesApi.postInstances(target, createInstancesRequest);
+//
+//        try {
+//            BackgroundOperationResponse actualCreateInstancesResponse = this.instancesApi.postInstances(target, createInstancesRequest);
+//            log.info("Create Instance Response >>>>>>>>>> " + actualCreateInstancesResponse);
+//            assertTrue((Objects.equals(actualCreateInstancesResponse.getStatusCode(), 200)) || Objects.equals(actualCreateInstancesResponse.getStatusCode(), 100));
+//
+//        } catch (ApiException e) {
+//            log.error("LXD API Exception: " + e.getMessage());
+//            log.error("HTTP Status Code: " + e.getCode());
+//            log.error("Response Body: " + e.getResponseBody());
+//            throw new RuntimeException(e);
+//        }
+//
+////        log.info("Create Instance Response >>>>>>>>>> " + actualCreateInstancesResponse);
+////        assertTrue((Objects.equals(actualCreateInstancesResponse.getStatusCode(), 200)) || Objects.equals(actualCreateInstancesResponse.getStatusCode(), 100));
+//    }
+
+    public void postInstancesAsync(LxcLxc lxc, LxcSuperLxc superLxc, LxcApplyBo lxcApplyBo) throws Exception {
         String target = null;
         final String architecture = "x86_64";
         final String type = "container";
-//        final String fingerprint = "f1335f08a2567d068405bf0165d942e6bf06a22c598f0e58e689e9e3e303432e";
         final String nameOfContainer = lxc.getChildName();
 
         SourceConfigBuilder sourceConfigBuilder = prepareSourceConfigBuilder(superLxc, lxcApplyBo.getMirrorImage());
@@ -66,24 +98,39 @@ public class InstancesUtils {
         List<String> profiles = new ArrayList<>();
         profiles.add("default");
 
-        CreateInstancesRequest createInstancesRequest = populateCreateInstancesRequest(devicesRoot, sourceConfigBuilder.asMap(), type, profiles, architecture, nameOfContainer, configBuilder.asMap(), false);
+        CreateInstancesRequest createInstancesRequest = populateCreateInstancesRequest(
+            devicesRoot,
+            sourceConfigBuilder.asMap(),
+            type,
+            profiles,
+            architecture,
+            nameOfContainer,
+            configBuilder.asMap(),
+            false
+        );
 
-//        BackgroundOperationResponse actualCreateInstancesResponse = this.instancesApi.postInstances(target, createInstancesRequest);
+        // 使用 CompletableFuture 异步调用 LXD API
+        CompletableFuture<BackgroundOperationResponse> future = CompletableFuture.supplyAsync(() -> {
+            try {
+                return this.instancesApi.postInstances(target, createInstancesRequest);
+            } catch (ApiException e) {
+                log.error("LXD API Exception: " + e.getMessage());
+                log.error("HTTP Status Code: " + e.getCode());
+                log.error("Response Body: " + e.getResponseBody());
+                throw new RuntimeException(e);
+            }
+        });
 
-        try {
-            BackgroundOperationResponse actualCreateInstancesResponse = this.instancesApi.postInstances(target, createInstancesRequest);
-            log.info("Create Instance Response >>>>>>>>>> " + actualCreateInstancesResponse);
-            assertTrue((Objects.equals(actualCreateInstancesResponse.getStatusCode(), 200)) || Objects.equals(actualCreateInstancesResponse.getStatusCode(), 100));
-
-        } catch (ApiException e) {
-            log.error("LXD API Exception: " + e.getMessage());
-            log.error("HTTP Status Code: " + e.getCode());
-            log.error("Response Body: " + e.getResponseBody());
-            throw new RuntimeException(e);
-        }
-
-//        log.info("Create Instance Response >>>>>>>>>> " + actualCreateInstancesResponse);
-//        assertTrue((Objects.equals(actualCreateInstancesResponse.getStatusCode(), 200)) || Objects.equals(actualCreateInstancesResponse.getStatusCode(), 100));
+        // 处理异步结果
+        future.thenAccept(response -> {
+            log.info("Create Instance Response >>>>>>>>>> " + response);
+            if (!(Objects.equals(response.getStatusCode(), 200) || Objects.equals(response.getStatusCode(), 100))) {
+                log.error("Failed to create instance with status code: " + response.getStatusCode());
+            }
+        }).exceptionally(ex -> {
+            log.error("Error occurred while creating instance: " + ex.getMessage());
+            return null;
+        });
     }
 
     /**

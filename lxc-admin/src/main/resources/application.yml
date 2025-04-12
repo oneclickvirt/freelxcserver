@@ -53,7 +53,8 @@ logging:
   level:
     com.lxc: @logging.level@
     org.springframework: warn
-    com.xxl.job: DEBUG
+#    com.xxl.job: DEBUG
+    com.xxl.job: info
   config: classpath:logback.xml
 
 # 用户配置

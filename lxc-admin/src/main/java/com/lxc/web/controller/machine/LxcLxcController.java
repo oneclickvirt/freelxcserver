@@ -107,11 +107,11 @@ public class LxcLxcController extends BaseController {
             return false;
         }
         QueryWrapper<LxcSuperLxc> queryWrapper = new QueryWrapper<>();
-        queryWrapper.select("password","way")
-            .eq("ip", lxcLxcVo.getSuperIp())
-            .last("limit 1");
-//        queryWrapper.eq("ip", lxcLxcVo.getSuperIp())
+//        queryWrapper.select("password","way")
+//            .eq("ip", lxcLxcVo.getSuperIp())
 //            .last("limit 1");
+        queryWrapper.eq("ip", lxcLxcVo.getSuperIp())
+            .last("limit 1");
         LxcSuperLxcVo superLxc = superLxcMapper.selectVoOne(queryWrapper);
         if (superLxc == null) {
             return false;
@@ -149,7 +149,7 @@ public class LxcLxcController extends BaseController {
         // 能获取到的角色列表即为空闲小鸡列表
         String cacheKey = CacheNames.FREE_LXC_LIST + ":" + roleIds;
         List<LxcLxcVo> lxcLxcVos = null;
-
+        // 同样用了旁路缓存模式
         if (RedisUtils.hasKey(cacheKey)) {
             // 若之前缓存到redis中，直接取出列表
             lxcLxcVos = RedisUtils.getCacheList(cacheKey);

@@ -7,6 +7,7 @@ import com.lxc.common.convert.ExcelDictConvert;
 import lombok.Data;
 
 import java.io.Serializable;
+import java.util.Date;
 
 
 /**
@@ -190,4 +191,24 @@ public class LxcSuperLxcVo implements Serializable {
      */
     @ExcelProperty(value = "镜像配置模板")
     private String sourceConfig;
+
+    /**
+     * 创建者
+     */
+    private String createBy;
+
+    /**
+     * 创建时间
+     */
+    private Date createTime;
+
+    /**
+     * 更新者
+     */
+    private String updateBy;
+
+    /**
+     * 更新时间
+     */
+    private Date updateTime;
 }

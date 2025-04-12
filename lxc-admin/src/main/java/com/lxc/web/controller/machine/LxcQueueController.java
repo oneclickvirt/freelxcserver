@@ -245,6 +245,40 @@ public class LxcQueueController extends BaseController {
             rLock.unlock();
         }
         return R.success("申请成功，请等待小鸡创建。若长时间未创建，请联系站长");
+//        RLock rLock = readWriteLock.writeLock();
+//        rLock.lock();
+//        try {
+//            // 修改 Redis 中的剩余数量
+//            long free = RedisUtils.decrAtomicValue(keyOfFree) + 1;
+//            log.info("{}剩余可开小鸡数量:{}", lxcSuperId, free);
+//            if (free <= 0) {
+//                return R.fail("来晚啦，小鸡已领完");
+//            }
+//            long used = RedisUtils.incrAtomicValue(keyOfUsed) - 1;
+//            log.info("{}已领取小鸡数量:{}", lxcSuperId, used);
+//        } finally {
+//            rLock.unlock();
+//        }
+//        AtomicBoolean isTaskSuccess = new AtomicBoolean(false);
+//// 异步执行远程调用
+//        CompletableFuture.runAsync(() -> {
+//            try {
+////                InstancesUtils.target(superLxc.getIp(), LxcConstants.LXD_PORT).postInstancesAsync(, superLxc, lxcApplyBo);
+//                R<Object> exception = lxcQueueService.applyLxc(superLxc, loginUser, lxcApplyBo);
+//                if (exception == null) {
+//                    isTaskSuccess.set(true);
+//                }
+//            } catch (Exception e) {
+//                log.error("创建小鸡失败", e);
+//                // 回滚 Redis 数据
+//                RedisUtils.incrAtomicValue(keyOfFree);
+//                RedisUtils.decrAtomicValue(keyOfUsed);
+//            }
+//        });
+//        if (isTaskSuccess.get())
+//            return R.success("申请成功，请等待小鸡创建。若长时间未创建，请联系站长");
+//        else
+//            return R.fail("创建小鸡失败，请联系站长");
     }
 
     @SaCheckPermission("lxc:lxc:all")
@@ -374,7 +408,8 @@ public class LxcQueueController extends BaseController {
 //        String lxcPort = "lxd".equals(way) ? LxcConstants.LXD_PORT : LxcConstants.INCUS_PORT;
         String lxcPort = LxcConstants.LXD_PORT;
         try {
-            InstancesUtils.target(superLxcIp,lxcPort).postInstances(lxc, superLxc, applyBo);
+//            InstancesUtils.target(superLxcIp,lxcPort).postInstances(lxc, superLxc, applyBo);
+            InstancesUtils.target(superLxcIp,lxcPort).postInstancesAsync(lxc, superLxc, applyBo);
             lxc.setUpdateTime(DateUtil.parseDate(DateUtil.now()));
             lxcMapper.insert(lxc);
             LxcQueue lxcQueue = new LxcQueue();

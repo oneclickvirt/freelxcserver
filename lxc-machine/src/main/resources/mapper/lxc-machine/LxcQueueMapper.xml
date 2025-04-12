@@ -25,7 +25,7 @@
         LEFT JOIN lxc_lxc_and_traffic b on a.lxc_id = b.id
         LEFT JOIN lxc_and_incus_super_lxc c ON b.super_ip = c.ip
         <where>
-            a.tg_id = #{tgId}
+            a.tg_id = #{tgId} and c.dead > #{nowDateTime}
         </where>
         order by b.lxc_status,a.create_time desc
     </select>

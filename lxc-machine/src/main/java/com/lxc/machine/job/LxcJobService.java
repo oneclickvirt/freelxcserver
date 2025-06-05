@@ -76,12 +76,9 @@ public class LxcJobService {
                         int size = lxcVoList.size();
                         int index = -1;
                         for (int i = 0; i < size; i++) {
-//                            String lxcPort = checkWhichPortForLxd(superIp);
-//                            LxcSuperLxc superLxc = lxcSuperLxcService.getOne(new QueryWrapper<LxcSuperLxc>().select("way").eq("ip", superIp));
                             LxcSuperLxc superLxc = lxcSuperLxcService.getOne(new QueryWrapper<LxcSuperLxc>().eq("ip", superIp).orderBy(true, true, "create_time").last("limit 1"));
                             String way = superLxc.getWay();
                             System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>  " + way);
-//                            String lxcPort = "lxd".equals(way) ? LxcConstants.LXD_PORT : LxcConstants.INCUS_PORT;
                             String lxcPort = LxcConstants.LXD_PORT;
                             try {
                                 // incus和lxc只会才服务器上存在其中一个，获取小鸡实例不涉及incus或lxc的命令前缀
@@ -107,7 +104,7 @@ public class LxcJobService {
                             XxlJobHelper.log("小鸡创建信息：{}", shellDto);
                             log.info("小鸡创建信息：{}", shellDto);
                             // 这里在linux服务器上调用modify.sh来初始化小鸡状态
-
+                            // ⭐⭐⭐这里是执行modify.sh生成 container 和 container_init.log 两个文件的关键步骤，只有 container 文件生成了，checkLxcPending才会将容器的密码同步回来数据库
                             ShellUtils.Shell shell = ShellUtils.initLxc(shellDto);
                             XxlJobHelper.log("小鸡{}初始化命令：{}", lxc.getChildName(), shell.getCmd());
                             log.info("小鸡{}初始化命令：{}", lxc.getChildName(), shell.getCmd());
@@ -181,17 +178,19 @@ public class LxcJobService {
      */
     @XxlJob("checkLxcPending")
     public void checkLxcPending() {
-        // 获取在排队的小鸡
+        // 获取在排队或重建中的小鸡
         List<LxcLxcVo> lxcPendingList = lxcService.getLxcList(
             new QueryWrapper<LxcLxc>()
                 .eq("lxc_status", LxcStatus.PENDING.getCode()) // 2
                 .or()
                 .eq("lxc_status", LxcStatus.FAILED_TO_CREATE.getCode()) // 6
+                .or()
+                .eq("lxc_status", LxcStatus.RESETING.getCode()) // 0
                 .orderBy(true, true, "create_time")
         );
         if (!lxcPendingList.isEmpty()) {
             XxlJobHelper.log("当前有{}个小鸡正在创建中", lxcPendingList.size());
-            // 给排队的小鸡都安排创建
+            // 给排队或重建中的小鸡都安排创建
             lxcPendingList.forEach(lxc -> {
                 try {
                     String superIp = lxc.getSuperIp();
@@ -209,8 +208,10 @@ public class LxcJobService {
                         .password(superLxc.getPassword())
                         .way(way)
                         .build();
+                    // ⭐⭐⭐容器密码返回
                     String createCommand = String.format(ShellUtils.IF_PASSWD_FILE_EXIST, childName);;
                     String hostInterfaceCommand = "";
+                    // ⭐⭐⭐容器接口返回
                     if("lxd".equals(way)){
                         hostInterfaceCommand = String.format(ShellUtils.GET_LXC_INTERFACE, childName);
                     }
@@ -220,10 +221,10 @@ public class LxcJobService {
 
                     // 判断小鸡容器和日志文件是否创建，如果存在，会返回true和小鸡密码
                     List<String> out = ShellUtils.execCmdOutList(createCommand, ShellUtils.getSession(shellDto));
-                    // TODO
-                    System.out.println(out.toString());
+                    System.out.println("容器和日志文件创建成功，容器密码同步到数据库：\n" + out.toString());
                     // 这里获取不到小鸡密码也会导致最后创建失败
                     if (out.size() == 2 && StringUtils.equals(out.get(0), "true")) {
+                        // such as :[true, 71a128da7]
                         LxcLxcBo temp = new LxcLxcBo();
                         temp.setLxcStatus(LxcStatus.RUNNING.getCode());
                         temp.setId(lxc.getId());
@@ -262,6 +263,7 @@ public class LxcJobService {
                             temp.setHostInterface(interfaceName);
                             lxcService.updateByBoForce(temp);
                             try {
+                                // vnstat是通过网卡获取容器使用的流量的
                                 String vnstatCommand = String.format(ShellUtils.VNSTAT_ADD_INTERFACE, interfaceName);
                                 List<String> vnstatRes = ShellUtils.execCmdOutList(vnstatCommand, ShellUtils.getSession(shellDto));
                                 XxlJobHelper.log("{}  {}添加vnstat网卡：{}，结果：", lxc.getId(), childName, interfaceName);
@@ -343,11 +345,12 @@ public class LxcJobService {
                 LxcSuperLxcVo superLxc = lxcSuperLxcService.queryByIp(superIp);
 
                 String way = superLxc.getWay();
-                System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>  " + way);
+//                System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>  " + way);
 
                 /** TODO
-                 * 暂时先用redis来存小鸡重建前状态
+                 * 暂时先用redis来存小鸡重建前状态，重建的小鸡默认为开机状态，但如果之前小鸡已流量超限，需要进行限流或冻结
                  */
+                // 只用redis不可靠，考虑数据库多一张表或多加一个字段
                 String keyOfLxcStatus = String.format(CacheNames.LXC_ORIGINAL_STATUS, lxcId);
                 if (RedisUtils.hasKey(keyOfLxcStatus)) {
                     String lxcOriginalStatus = RedisUtils.getCacheObject(keyOfLxcStatus);
@@ -368,6 +371,9 @@ public class LxcJobService {
                     }
 
 //                RedisUtils.deleteKeys(keyOfLxcStatus);  // 会使该键变成一次性
+                } else {
+                    // 如果redis中没有keyOfLxcStatus，从哪里获取先前的状态完成还原   TODO
+
                 }
             }
         }

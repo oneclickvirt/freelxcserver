@@ -45,6 +45,10 @@ public class LxcLxc extends BaseEntity {
      */
     private String superIp;
     /**
+     * 容器所用镜像
+     */
+    private String mirrorImage;
+    /**
      * 小鸡名称
      */
     private String childName;

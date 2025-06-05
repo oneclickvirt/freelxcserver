@@ -121,8 +121,8 @@ public class ShellUtils {
 
     public static final String VNSTATI_SUMMARY = "vnstati -s -i $(lxc info %1$s |grep -i -w \"Host interface\" |awk '{print $NF}')  -o %2$s && base64 -w 0 %2$s  && rm -rf %2$s";
     public static final String INCUS_VNSTATI_SUMMARY = "vnstati -s -i $(incus info %1$s |grep -i -w \"Host interface\" |awk '{print $NF}')  -o %2$s && base64 -w 0 %2$s  && rm -rf %2$s";
-    public static final String VNSTATI_SUMMARY_STREAM = "vnstati  -vs 0 --headertext %1$s  -L -ne --scale 150 --style 3 -ru 0 -i $(lxc info %1$s |grep -i -w \"Host interface\" |awk '{print $NF}') -o -";
-    public static final String INCUS_VNSTATI_SUMMARY_STREAM = "vnstati  -vs 0 --headertext %1$s  -L -ne --scale 150 --style 3 -ru 0 -i $(incus info %1$s |grep -i -w \"Host interface\" |awk '{print $NF}') -o -";
+    public static final String VNSTATI_SUMMARY_STREAM = "vnstati  -vs 0 --headertext %1$s  -L -ne --scale 100 --style 3 -ru 0 -i $(lxc info %1$s |grep -i -w \"Host interface\" |awk '{print $NF}') -o -";
+    public static final String INCUS_VNSTATI_SUMMARY_STREAM = "vnstati  -vs 0 --headertext %1$s  -L -ne --scale 100 --style 3 -ru 0 -i $(incus info %1$s |grep -i -w \"Host interface\" |awk '{print $NF}') -o -";
 
     public static final String INIT_LOG = " if [ ! -f \"/root/%1$s_init.log\" ];then\n"
         + "  echo '创建日志不存在' \n"
@@ -207,15 +207,19 @@ public class ShellUtils {
                 command = "reset";
                 result = "容器重建";
                 break;
-            /*case "delete":
-                int deleteCode = queueMapper.deleteById(queueDto.getLxcId());
-                lxc.setState(0);
-                int updateCode = lxcMapper.updateById(lxc);
-                if (deleteCode == 1 & updateCode == 1) {
-                    return R.success("删除成功");
-                } else {
-                    return R.fail("服务器内部错误，请联系管理员");
-                }*/
+            case "delete":
+                command = "delete";
+                result = "删除成功";
+                break;
+//            case "delete":
+//                int deleteCode = queueMapper.deleteById(queueDto.getLxcId());
+//                lxc.setState(0);
+//                int updateCode = lxcMapper.updateById(lxc);
+//                if (deleteCode == 1 & updateCode == 1) {
+//                    return R.success("删除成功");
+//                } else {
+//                    return R.fail("服务器内部错误，请联系管理员");
+//                }
             case "traffic_limit":
                 if(nowStatus.equalsIgnoreCase("RUNNING") || nowStatus.equalsIgnoreCase("UNFROZEN")){
                     command = "pause";
@@ -638,7 +642,7 @@ public class ShellUtils {
         return shell;
     }
 
-
+    // 这是在使用LXD发起http请求前使用的创建小鸡脚本，内含小鸡配置和宿主机的环境配置
     public static String createLxc(ShellDto sshDto) {
         //1、利用JschUtil获取会话连接
         Session session = JschUtil.getSession(sshDto.getIp(),sshDto.getSshPort(),sshDto.getUsername(),sshDto.getPassword());

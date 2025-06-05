@@ -31,15 +31,7 @@ public class InstancesApi {
         this(Configuration.getDefaultApiClient());
     }
 
-//    public InstancesApi of(String ip) {
-////        String baseUrl = "https://" + ip + ":9969";
-//        String baseUrl = "https://" + ip + ":8443";
-//        localVarApiClient.setBasePath(baseUrl);
-//        return this;
-//    }
-
-    // 如果8443连接不上报错换9969
-    public InstancesApi of(String ip,String port) {
+    public InstancesApi of(String ip, String port) {
         String baseUrl = "https://" + ip + ":" + port;
 
         localVarApiClient.setBasePath(baseUrl);

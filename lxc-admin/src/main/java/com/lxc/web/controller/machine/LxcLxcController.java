@@ -208,8 +208,10 @@ public class LxcLxcController extends BaseController {
         queue.setChildName(lxc.getChildName());
         QueryWrapper<LxcSuperLxc> queryWrapper = new QueryWrapper<>();
         //.select里的是查询后显示控制台能看到的内容
-        queryWrapper.select("password","way").
-            eq("ip", lxc.getSuperIp())
+//        queryWrapper.select("password","way").
+//            eq("ip", lxc.getSuperIp())
+//            .last("limit 1");
+        queryWrapper.eq("ip", lxc.getSuperIp())
             .last("limit 1");
         //查询的表由lxc_super_lxc改成lxc_and_incus_super_lxc
         LxcSuperLxcVo superLxc = superLxcMapper.selectVoOne(queryWrapper);
@@ -325,9 +327,9 @@ public class LxcLxcController extends BaseController {
     @Log(title = "小鸡信息", businessType = BusinessType.DELETE)
     @DeleteMapping("/{ids}")
     public R<Void> remove(@NotEmpty(message = "主键不能为空") @PathVariable Long[] ids) {
+
         return toAjax(lxcLxcService.deleteWithValidByIds(Arrays.asList(ids), true) ? 1 : 0);
     }
-
 
 
     /**

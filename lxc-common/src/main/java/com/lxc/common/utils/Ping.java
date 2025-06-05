@@ -4,8 +4,6 @@ package com.lxc.common.utils;/* Connect to each of a list of hosts and measure t
  * selector.
  */
 
-import org.junit.jupiter.api.Test;
-
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -14,9 +12,6 @@ import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.util.Iterator;
 import java.util.LinkedList;
-import java.util.List;
-
-import static com.lxc.common.utils.ShellUtils.NET_USED;
 
 public class Ping {
 

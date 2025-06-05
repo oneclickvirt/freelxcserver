@@ -46,6 +46,11 @@ public class LxcLxcBo extends BaseEntity {
     private String superIp;
 
     /**
+     * 容器所用镜像
+     */
+    private String mirrorImage;
+
+    /**
      * IPV6地址
      */
     private String ipv6Addr;

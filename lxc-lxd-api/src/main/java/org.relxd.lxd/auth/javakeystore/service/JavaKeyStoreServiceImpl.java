@@ -90,9 +90,14 @@ public class JavaKeyStoreServiceImpl implements JavaKeyStoreService {
 
         try {
             File file = new File(filePath);
-            if (!file.exists()) {
-                throw new Exception("Keystore does not exist at path :" + filePath);
-            }
+
+            String osName = System.getProperty("os.name").toLowerCase();
+            boolean isWindows = osName.contains("win");
+//            if (!isWindows){
+                if (!file.exists()) {
+                    throw new Exception("Keystore does not exist at path :" + filePath);
+                }
+//            }
 
             KeyStore keyStore = KeyStore.getInstance("PKCS12");
 

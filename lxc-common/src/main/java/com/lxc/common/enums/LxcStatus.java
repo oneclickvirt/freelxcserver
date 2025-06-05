@@ -33,7 +33,7 @@ public enum LxcStatus {
      */
     DESTROYED("5"),
     /**
-     * 创建失败
+     * 创建失败，将被删除回收
      */
     FAILED_TO_CREATE("6"),
     /**
@@ -43,7 +43,15 @@ public enum LxcStatus {
     /**
      * 流量超限
      */
-    TRAFFIC_LIMIT("8");
+    TRAFFIC_LIMIT("8"),
+    /**
+     * 已冻结
+     */
+    FROZEN("9"),
+    /**
+     * 重建中
+     */
+    RESETING("0");
 
     private final String code;
 }

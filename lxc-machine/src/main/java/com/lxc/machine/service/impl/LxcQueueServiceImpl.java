@@ -8,6 +8,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.lxc.common.constant.CacheNames;
+import com.lxc.common.constant.Constants;
 import com.lxc.common.constant.LxcConstants;
 import com.lxc.common.core.domain.PageQuery;
 import com.lxc.common.core.domain.R;
@@ -17,6 +18,7 @@ import com.lxc.common.core.domain.model.LoginUser;
 import com.lxc.common.core.page.TableDataInfo;
 import com.lxc.common.enums.LxcStatus;
 import com.lxc.common.helper.LoginHelper;
+import com.lxc.common.utils.ShellUtils;
 import com.lxc.common.utils.StringUtils;
 import com.lxc.common.utils.redis.RedisUtils;
 import com.lxc.framework.service.BaseService;
@@ -36,16 +38,18 @@ import com.lxc.machine.service.ILxcQueueService;
 import com.lxc.machine.service.ILxcSuperLxcService;
 import com.lxc.machine.utils.InstancesUtils;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.jetbrains.annotations.NotNull;
 import org.relxd.lxd.ApiException;
 import org.relxd.lxd.api.InstancesApi;
 import org.relxd.lxd.model.BackgroundOperationResponse;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 /**
@@ -56,6 +60,7 @@ import java.util.stream.Collectors;
  */
 @RequiredArgsConstructor
 @Service
+@Slf4j
 public class LxcQueueServiceImpl extends BaseService<LxcQueueMapper, LxcQueue> implements ILxcQueueService {
 
     private final InstancesApi lxcApi;
@@ -74,7 +79,7 @@ public class LxcQueueServiceImpl extends BaseService<LxcQueueMapper, LxcQueue> i
 
     private final ILxcLxcService lxcService;
     private final ILxcSuperLxcService lxcSuperLxcService;
-
+    private RedisUtils redisUtils;
     /**
      * 查询小鸡和用户关联表
      */
@@ -258,22 +263,47 @@ public class LxcQueueServiceImpl extends BaseService<LxcQueueMapper, LxcQueue> i
 //        Object metadata = allInstancesBase.getMetadata();
 //        // 转为string list
 //        List<String> instancesList = JSONUtil.parseArray(JSONUtil.toJsonStr(metadata)).toList(String.class);
-//        //获取去掉前缀的小鸡名称序号列表
-//        List<Integer> collect = instancesList.stream()
-//            .map(o -> {
-//                try {
-//                    //小鸡名称分割出前缀和序号，如te1分为te 和 1
-//                    return Integer.parseInt(o.split(superLxc.getPrefix())[1]);
-//                } catch (Exception e) {
-//                    return 0;
-//                }
-//            })
-//            .filter(o -> o != 0)
-//            .distinct()
-//            .sorted()
-//            .collect(Collectors.toList());
+    //获取去掉前缀的小鸡名称序号列表
+    //有个缺点，这里的instancesList是从LXD服务器获取的创建成功的容器列表，
+    // 如果之前的容器创建失败，会导致instancesList中出现重复的容器名，需要跟数据库中的容器列表进行对比，删除重复的容器名
+    // todo 需要跟数据库中的容器列表进行对比，删除重复的容器名
+//    List<Integer> usedContainerNums = instancesList.stream()
+//        .map(o -> {
+//            try {
+//                //小鸡名称分割出前缀和序号，如/1.0/instances/te1分为/1.0/instances/te 和 1
+//                return Integer.parseInt(o.split(superLxc.getPrefix())[1]);
+//            } catch (Exception e) {
+//                return 0;
+//            }
+//        })
+//        .filter(o -> o != 0)
+//        .distinct()
+//        .sorted()
+//        .collect(Collectors.toList());
+//    // 1、从lxc表中查出所有该superLxc下的容器，将容器名去掉前缀后转为integer list
+//    LambdaQueryWrapper<LxcLxc> lqwLxcLxc = new LambdaQueryWrapper<>();
+//        lqwLxcLxc.eq(LxcLxc::getSuperIp, superLxcIp);
+//    List<LxcLxcVo> lxcLxcVos = lxcMapper.selectVoList(lqwLxcLxc);
+//    List<Integer> continusNumsInDB = lxcLxcVos.stream()
+//        .map(o -> Integer.parseInt(o.getChildName().split(superLxc.getPrefix())[1])).collect(Collectors.toList());
+//        continusNumsInDB.forEach(System.out::println); // 看是否能正确分割序号
+//    // 2、将instancesList和continusNums进行对比，删除instancesList中重复的容器名
+//        for (Integer continusNum : continusNumsInDB) {
+//        // 如果LXD服务器显示不存在当前容器，就从数据库中删除
+//        if (!usedContainerNums.contains(continusNum)) {
+//            LambdaQueryWrapper<LxcLxc> lqwLxcLxcDelete = new LambdaQueryWrapper<>();
+//            lqwLxcLxcDelete.eq(LxcLxc::getSuperIp, superLxcIp);
+//            lqwLxcLxcDelete.eq(LxcLxc::getChildName, superLxc.getPrefix() + continusNum);
+//            lxcMapper.delete(lqwLxcLxcDelete);
+//            // 从lxc_queue表中删除该容器
+//            LambdaQueryWrapper<LxcQueue> lqwLxcQueueDelete = new LambdaQueryWrapper<>();
+//            lqwLxcQueueDelete.eq(LxcQueue::getIp, superLxcIp);
+//            lqwLxcQueueDelete.eq(LxcQueue::getLxcId, continusNum);
+//            baseMapper.delete(lqwLxcQueueDelete);
+//        }
+//    }
 //        // 找出没有连续的数字，比如1,2,5,6返回3 ，1,2,3,4返回5
-//        int portIndex = findFirstDiscontinuous(collect);
+//        int portIndex = findFirstDiscontinuous(usedContainerNums);
 //
 //        LxcUser tgUser = loginUser.getLxcUser();
 //        tgUser.setSurplusQuota(tgUser.getSurplusQuota() - 1);
@@ -310,108 +340,112 @@ public class LxcQueueServiceImpl extends BaseService<LxcQueueMapper, LxcQueue> i
 //        return null;
 //    }
 
-//    @Override
-//    @Transactional(rollbackFor = Exception.class)
-//    public R<Object> applyLxc(LxcSuperLxc superLxc, LoginUser loginUser, LxcApplyBo lxcApplyBo) {
-//        LxcLxc lxc = new LxcLxc();
-//        String superLxcIp = superLxc.getIp();
-////        if(isReset) {
-////            String keyOfLxc = String.format(CacheNames.LXC_LXC_RESET,lxc.getId());
-////            lxc = RedisUtils.getCacheObject(CacheNames.LXC_LXC_RESET);
-////            lxc.setLxcStatus(LxcStatus.WAITING_FOR_PROCESS.getCode());
-////        }else {
-////            String superLxcIp = superLxc.getIp();
-//
-//        //****************************************************//
-//        // 手动执行创建容器日志文件
-////        ShellUtils.execCmd(ShellUtils.INIT_LXC,"root",superLxc.getPassword(),);
-//
-//        //****************************************************//
-//
-//        BackgroundOperationResponse allInstancesBase = getAllInstancesBase(superLxcIp);
-//        Object metadata = allInstancesBase.getMetadata();
-//        // 将lxc list中容器(前缀+序号)中的容器名列表转为string list
-//        // 删除小鸡时要注意确保把对应容器删掉，否则会影响重新创建前lxc list读取已创建小鸡列表
-//        List<String> instancesList = JSONUtil.parseArray(JSONUtil.toJsonStr(metadata)).toList(String.class);
-//        //获取去掉前缀的小鸡名称序号列表
-//        List<Integer> collect = instancesList.stream()
-//            .map(o -> {
-//                try {
-//                    //小鸡名称分割出前缀和序号，如te1分为te 和 1
-//                    return Integer.parseInt(o.split(superLxc.getPrefix())[1]);
-//                } catch (Exception e) {
-//                    return 0;
-//                }
-//            })
-//            .filter(o -> o != 0)
-//            .distinct()
-//            .sorted()
-//            .collect(Collectors.toList());
-//        // 找出没有连续的数字，比如1,2,5,6返回3 ，1,2,3,4返回5
-//        int portIndex = findFirstDiscontinuous(collect);
-//
-//        LxcUser tgUser = loginUser.getLxcUser();
-//        tgUser.setSurplusQuota(tgUser.getSurplusQuota() - 1);
-//        LoginHelper.setLoginUser(loginUser);
-//        //从开始端口偏移当前小鸡索引
-//        long sshPort = superLxc.getSshPortStart() + portIndex;
-//
-//        long netStartPort = superLxc.getNetStartPort() + (portIndex * superLxc.getNetStep());
-//        // 如果前面之前的小鸡没删干净(因某些原因只删了一部分数据)，在删除方法里加了个@Transactional注解，这里set入lxc中的childName就会跟实际不符，特别是重建时，前后序号会不一致
-//        lxc = new LxcLxc().setChildName(superLxc.getPrefix() + portIndex)
-//            .setName(superLxc.getName())
-//            .setTag(superLxc.getTag())
-//            .setSuperIp(superLxcIp)
-//            .setSshPort(String.valueOf(sshPort))
-//            .setPortStart(netStartPort + "")
-//            .setPortEnd(netStartPort + (superLxc.getNetStep() - 1) + "")
-//            .setState(1)
-//            .setLxcStatus(LxcStatus.WAITING_FOR_PROCESS.getCode());
-//        try {
-//
-//            String way = superLxc.getWay();
-//            String lxcPort = LxcConstants.LXD_PORT;
-//            // 调用REST API执行lxd命令创建实例，重构成incus时改成okHttp来请求API
-//            InstancesUtils.target(superLxcIp,lxcPort).postInstances(lxc, superLxc, lxcApplyBo);
-//        } catch (Exception e) {
-//            throw new RuntimeException(e);
-//        }
-//
-//        lxcMapper.insert(lxc);
-//
-//        LxcQueue queue = new LxcQueue();
-//        queue.setLxcId(lxc.getId());
-//        queue.setEndTime(superLxc.getDead());
-//        queue.setSuperName(lxc.getName());
-//        queue.setTgId(loginUser.getTgId());
-//        queue.setIp(lxc.getSuperIp());
-//        queue.setSshPort(lxc.getSshPort());
-//
-//        baseMapper.insert(queue);
-//        //将lxcApply存到redis，备用于重建，主要还是存小鸡的镜像信息
-//        String keyOfApplyVo = String.format(CacheNames.LXC_APPLY_VO,lxc.getId());
-//        if(RedisUtils.getCacheObject(keyOfApplyVo) == null) {//如果LXC_APPLY_VO为空
-////            String keyOfApplyVo = String.format(CacheNames.LXC_APPLY_VO,lxc.getId());
-//            RedisUtils.setCacheObject(keyOfApplyVo, lxcApplyBo);
-//        }
-//        String keyOfSuperLxc = String.format(CacheNames.LXC_SUPER_LXC_RESET,lxc.getId());
-//        RedisUtils.setCacheObject(keyOfSuperLxc,superLxc);
-//        return null;
-//    }
-
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    /**
+     * 事务回滚无法回滚已执行的异步请求，还是要手动确认回滚
+     */
+//    @Transactional(rollbackFor = Exception.class)
     public R<Object> applyLxc(LxcSuperLxc superLxc, LoginUser loginUser, LxcApplyBo lxcApplyBo) {
+        LxcLxc lxc = new LxcLxc();
         String superLxcIp = superLxc.getIp();
+        // redis缓存操作
+        Long lxcSuperId = superLxc.getId();
+        String keyOfFree = String.format(CacheNames.LXC_SUPER_APPLY_FREE, lxcSuperId);
+        String keyOfUsed = String.format(CacheNames.LXC_SUPER_APPLY_USED, lxcSuperId);
+        // 扣减剩余数量并校验
+        long free = RedisUtils.decrAtomicValue(keyOfFree) + 1;
+        log.info("{}剩余可开小鸡数量:{}", lxcSuperId, free);
+        if (free <= 0) {
+            return R.fail("来晚啦，小鸡已领完");
+        }
+        // 增加已用数量
+        long used = RedisUtils.incrAtomicValue(keyOfUsed) - 1;
+        log.info("{}已领取小鸡数量:{}", lxcSuperId, used);
+        //
+        List<Integer> usedContainerNums = checkDuplicateChick(superLxc, superLxcIp);
+        // 找出没有连续的数字，比如1,2,5,6返回3 ，1,2,3,4返回5
+        int portIndex = findFirstDiscontinuous(usedContainerNums);
 
-        // 获取当前实例列表并计算下一个可用端口
+        LxcUser tgUser = loginUser.getLxcUser();
+        tgUser.setSurplusQuota(tgUser.getSurplusQuota() - 1);
+        LoginHelper.setLoginUser(loginUser);
+        //从开始端口偏移当前小鸡索引
+        long sshPort = superLxc.getSshPortStart() + portIndex;
+        long netStartPort = superLxc.getNetStartPort() + (portIndex * superLxc.getNetStep());
+        // 如果前面之前的小鸡没删干净(因某些原因只删了一部分数据)，在删除方法里加了个@Transactional注解，这里set入lxc中的childName就会跟实际不符，特别是重建时，前后序号会不一致
+        lxc = new LxcLxc().setChildName(superLxc.getPrefix() + portIndex)
+            .setName(superLxc.getName())
+            .setTag(superLxc.getTag())
+            .setSuperIp(superLxcIp)
+            .setMirrorImage(lxcApplyBo.getMirrorImage())
+            .setSshPort(String.valueOf(sshPort))
+            .setPortStart(netStartPort + "")
+            .setPortEnd(netStartPort + (superLxc.getNetStep() - 1) + "")
+            .setState(1) // 1-占用，0-空闲
+            .setLxcStatus(LxcStatus.WAITING_FOR_PROCESS.getCode());
+        try {
+
+            String lxcPort = LxcConstants.LXD_PORT;
+            // 调用REST API执行lxd命令创建实例，重构成incus时改成okHttp来请求API
+            InstancesUtils.target(superLxcIp,lxcPort).postInstances(lxc, superLxc, lxcApplyBo);
+            // 申请小鸡成功，清理缓存（保持数据一致性）
+            RedisUtils.deleteKeys(CacheNames.FREE_LXC_LIST + "*");
+            RedisUtils.deleteKeys(CacheNames.STATISTICS_LXC_LIST);
+        } catch (Exception e) {
+            // 回滚已创建的小鸡，删掉未创建成功的小鸡的信息
+            checkDuplicateChick(superLxc, superLxcIp);
+            // 异常回滚缓存
+            RedisUtils.incrAtomicValue(keyOfFree);
+            RedisUtils.decrAtomicValue(keyOfUsed);
+            throw new RuntimeException(e);
+        }
+        lxcMapper.insert(lxc);
+        LxcQueue queue = new LxcQueue();
+        queue.setLxcId(lxc.getId());
+        queue.setEndTime(superLxc.getDead());
+        queue.setSuperName(lxc.getName());
+        queue.setTgId(loginUser.getTgId());
+        queue.setIp(lxc.getSuperIp());
+        queue.setSshPort(lxc.getSshPort());
+        baseMapper.insert(queue);
+        //将lxcApply存到redis，备用于重建，主要还是存小鸡的镜像信息
+        String keyOfApplyVo = String.format(CacheNames.LXC_APPLY_VO,lxc.getId());
+        if(RedisUtils.getCacheObject(keyOfApplyVo) == null) {
+            //如果LXC_APPLY_VO为空
+            RedisUtils.setCacheObject(keyOfApplyVo, lxcApplyBo, Duration.ofMinutes(Constants.DEFAULT_SAVE_MINUTE));
+        }
+        // 这里的母鸡信息也可以在重建时从数据库获取
+        String keyOfSuperLxc = String.format(CacheNames.LXC_SUPER_LXC_RESET,lxc.getId());
+        RedisUtils.setCacheObject(keyOfSuperLxc, superLxc, Duration.ofMinutes(Constants.DEFAULT_SAVE_MINUTE));
+
+        return null;
+    }
+
+    /**
+     * 获取指定宿主机当前已存在的所有容器，跟数据库对比后删除数据库多余的容器
+     * @param superLxc
+     * @param superLxcIp
+     * @return
+     */
+    @NotNull
+    private List<Integer> checkDuplicateChick(LxcSuperLxc superLxc, String superLxcIp) {
         BackgroundOperationResponse allInstancesBase = getAllInstancesBase(superLxcIp);
+        // 从metadata中获取小鸡序号
+        log.info("create allInstancesBase:{}",allInstancesBase);
+        log.info("==========================================================");
         Object metadata = allInstancesBase.getMetadata();
+        log.info("create metadata:{}",metadata);
+        log.info("==========================================================");
+        // 将lxc list中容器(前缀+序号)中的容器名列表转为string list
+        // 删除小鸡时要注意确保把对应容器删掉，否则会影响重新创建前lxc list读取已创建小鸡列表
         List<String> instancesList = JSONUtil.parseArray(JSONUtil.toJsonStr(metadata)).toList(String.class);
-
-        List<Integer> collect = instancesList.stream()
+        //获取去掉前缀的小鸡名称序号列表
+        //有个缺点，这里的instancesList是从LXD服务器获取的创建成功的容器列表，
+        // 如果之前的容器创建失败，会导致instancesList中出现重复的容器名，需要跟数据库中的容器列表进行对比，删除重复的容器名
+        List<Integer> usedContainerNums = instancesList.stream()
             .map(o -> {
                 try {
+                    //小鸡名称分割出前缀和序号，如/1.0/instances/te1分为/1.0/instances/te 和 1
                     return Integer.parseInt(o.split(superLxc.getPrefix())[1]);
                 } catch (Exception e) {
                     return 0;
@@ -421,62 +455,154 @@ public class LxcQueueServiceImpl extends BaseService<LxcQueueMapper, LxcQueue> i
             .distinct()
             .sorted()
             .collect(Collectors.toList());
-
-        int portIndex = findFirstDiscontinuous(collect);
-        long sshPort = superLxc.getSshPortStart() + portIndex;
-        long netStartPort = superLxc.getNetStartPort() + (portIndex * superLxc.getNetStep());
-
-        // 构建小鸡对象
-        LxcLxc lxc = new LxcLxc()
-            .setChildName(superLxc.getPrefix() + portIndex)
-            .setName(superLxc.getName())
-            .setTag(superLxc.getTag())
-            .setSuperIp(superLxcIp)
-            .setSshPort(String.valueOf(sshPort))
-            .setPortStart(netStartPort + "")
-            .setPortEnd(netStartPort + (superLxc.getNetStep() - 1) + "")
-            .setState(1)
-            .setLxcStatus(LxcStatus.WAITING_FOR_PROCESS.getCode());
-
-        // 更新用户配额
-        LxcUser tgUser = loginUser.getLxcUser();
-        tgUser.setSurplusQuota(tgUser.getSurplusQuota() - 1);
-        LoginHelper.setLoginUser(loginUser);
-
-        // 异步调用创建容器实例
-        CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
-            try {
-                InstancesUtils.target(superLxcIp, LxcConstants.LXD_PORT).postInstancesAsync(lxc, superLxc, lxcApplyBo);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
+        // 1、从lxc表中查出所有该superLxc下的容器，将容器名去掉前缀后转为integer list
+        LambdaQueryWrapper<LxcLxc> lqwLxcLxc = new LambdaQueryWrapper<>();
+        lqwLxcLxc.eq(LxcLxc::getSuperIp, superLxcIp);
+        List<LxcLxcVo> lxcLxcVos = lxcMapper.selectVoList(lqwLxcLxc);
+        List<Integer> continusNumsInDB = lxcLxcVos.stream()
+           .map(o -> Integer.parseInt(o.getChildName().split(superLxc.getPrefix())[1])).collect(Collectors.toList());
+        continusNumsInDB.forEach(System.out::println); // 看是否能正确分割序号
+        // 2、将instancesList和continusNums进行对比，删除instancesList中重复的容器名
+        for (Integer continusNum : continusNumsInDB) {
+            // 如果LXD服务器显示不存在当前容器，就从数据库中删除
+            if (!usedContainerNums.contains(continusNum)) {
+                // 连接母鸡，删除容器
+                try {
+                    String stopContainer = ShellUtils.execCmdAndReturnStatus(
+                        ShellDto.builder()
+                            .ip(superLxcIp)
+                            .password(superLxc.getPassword())
+                            .way(superLxc.getWay())
+                            .modifyType("stop")
+                            .childName(superLxc.getPrefix() + continusNum)
+                            .build()
+                    );
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+                try {
+                    String delContainer = ShellUtils.execCmdAndReturnStatus(
+                        ShellDto.builder()
+                            .ip(superLxcIp)
+                            .password(superLxc.getPassword())
+                            .way(superLxc.getWay())
+                            .modifyType("delete")
+                            .childName(superLxc.getPrefix() + continusNum)
+                            .build()
+                    );
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+                LambdaQueryWrapper<LxcLxc> lqwLxcLxcDelete = new LambdaQueryWrapper<>();
+                lqwLxcLxcDelete.eq(LxcLxc::getSuperIp, superLxcIp);
+                lqwLxcLxcDelete.eq(LxcLxc::getChildName, superLxc.getPrefix() + continusNum);
+                // 先从lxc_queue表中删除该容器，再删lxc表，否则拿不到lxcId
+                LxcLxc lxcLxc4Queue = lxcMapper.selectOne(lqwLxcLxcDelete);
+                LambdaQueryWrapper<LxcQueue> lqwLxcQueueDelete = new LambdaQueryWrapper<>();
+                lqwLxcQueueDelete.eq(LxcQueue::getIp, superLxcIp);
+                lqwLxcQueueDelete.eq(LxcQueue::getLxcId, lxcLxc4Queue.getId());
+                // 删lxc_queue表
+                baseMapper.delete(lqwLxcQueueDelete);
+                // 删lxc_lxc_and_traffic表
+                lxcMapper.delete(lqwLxcLxcDelete);
             }
-        });
-
-        // 插入数据库记录
-        lxcMapper.insert(lxc);
-
-        LxcQueue queue = new LxcQueue();
-        queue.setLxcId(lxc.getId());
-        queue.setEndTime(superLxc.getDead());
-        queue.setSuperName(lxc.getName());
-        queue.setTgId(loginUser.getTgId());
-        queue.setIp(lxc.getSuperIp());
-        queue.setSshPort(lxc.getSshPort());
-
-        baseMapper.insert(queue);
-
-        // 将申请信息缓存到 Redis
-        String keyOfApplyVo = String.format(CacheNames.LXC_APPLY_VO, lxc.getId());
-        if (RedisUtils.getCacheObject(keyOfApplyVo) == null) {
-            RedisUtils.setCacheObject(keyOfApplyVo, lxcApplyBo);
         }
-
-        String keyOfSuperLxc = String.format(CacheNames.LXC_SUPER_LXC_RESET, lxc.getId());
-        RedisUtils.setCacheObject(keyOfSuperLxc, superLxc);
-
-//        return R.success("申请已提交，正在后台创建容器，请稍后查看状态");
-        return null;
+        return usedContainerNums;
     }
+
+//    @Override
+//    @Transactional(rollbackFor = Exception.class)
+//    public R<Object> applyLxc(LxcSuperLxc superLxc, LoginUser loginUser, LxcApplyBo lxcApplyBo) {
+//        LxcLxc lxc = new LxcLxc();
+//        String superLxcIp = superLxc.getIp();
+//
+//        // 获取当前宿主机所有实例列表
+//        BackgroundOperationResponse allInstancesBase = getAllInstancesBase(superLxcIp);
+//        Object metadata = allInstancesBase.getMetadata();
+//        List<String> instancesList = JSONUtil.parseArray(JSONUtil.toJsonStr(metadata)).toList(String.class);
+//        log.info("当前实例列表：{}", instancesList);
+//        // 提取实例名称中的序号（假设实例名格式为：前缀+数字，如 "lxc-1"）
+//        List<Integer> numberList = instancesList.stream()
+//            .map(instance -> {
+//                try {
+//                    return Integer.parseInt(instance.split(superLxc.getPrefix())[1]);
+//                } catch (Exception e) {
+//                    return 0; // 无效序号
+//                }
+//            })
+//            .filter(num -> num != 0)
+//            .distinct()
+//            .sorted()
+//            .collect(Collectors.toList());
+//
+//        // 计算下一个可用序号（找到第一个不连续的数字，若连续则取最大值+1）
+//        int nextNumber = findFirstDiscontinuous(numberList);
+//        String containerName = superLxc.getPrefix() + nextNumber;
+//        // 这里没有确认数据库中这个名字在不在
+//        QueryWrapper<LxcLxc> lxcQw = new QueryWrapper<>();
+//        lxcQw.eq("child_name", containerName);
+//        List<LxcLxc> lxcHasExisted = lxcMapper.selectList(lxcQw);
+//        if (lxcHasExisted != null) {
+//            // 因为之前的误操作使得数据库中存在重复的child_name，但实际上服务器中没有真正的小鸡实例
+//            // 这里需要删除数据库中的记录，避免重复创建
+//            for (LxcLxc lxcHasExistedItem : lxcHasExisted) {
+//                // lxc表和queue表都要删记录
+//                LxcQueue lxcQueue = baseMapper.selectQueueByLxcId(lxcHasExistedItem.getId());
+//                if (lxcQueue!= null) {
+//                    baseMapper.deleteById(lxcQueue.getId());
+//                }
+//                lxcMapper.deleteById(lxcHasExistedItem.getId());
+//            }
+//        }
+//        lxc.setChildName(containerName);
+//        long netStartPort = superLxc.getNetStartPort() + (nextNumber * superLxc.getNetStep());
+//        String sshPort = superLxc.getSshPortStart() + nextNumber + "";
+//        // 填充容器基本信息（从 superLxc 和 lxcApplyBo 中获取）
+//        lxc.setName(superLxc.getName());
+//        lxc.setTag(superLxc.getTag());
+//        lxc.setSuperIp(superLxc.getIp());
+//        lxc.setSshPort(sshPort);
+//        lxc.setPortStart(netStartPort + "");
+//        lxc.setPortEnd(netStartPort + (superLxc.getNetStep() - 1) + "");
+//        lxc.setState(1); // 初始状态为有效
+//        lxc.setLxcStatus(LxcStatus.PENDING.getCode()); // 状态为"等待创建"
+//
+//        String keyOfFree = String.format(CacheNames.LXC_SUPER_APPLY_FREE, superLxc.getId());
+//        String keyOfUsed = String.format(CacheNames.LXC_SUPER_APPLY_USED, superLxc.getId());
+//
+//        boolean isApplySuccess = true;
+//        // 调用异步创建容器并监听异常
+//        CompletableFuture<Void> exception = InstancesUtils.target(superLxcIp, LxcConstants.LXD_PORT)
+//            .postInstancesAsync(lxc, superLxc, lxcApplyBo)
+//            .exceptionally(ex -> {
+//                // 异步任务失败时回滚 Redis 缓存（与 Controller 层逻辑联动）
+//                RedisUtils.incrAtomicValue(keyOfFree);
+//                RedisUtils.decrAtomicValue(keyOfUsed);
+//                log.error("容器[{}]创建失败，已回滚缓存", lxc.getChildName());
+//                return null;
+//            });
+//
+//        // 插入数据库记录
+//        lxcMapper.insert(lxc);
+//        LxcQueue queue = new LxcQueue();
+//        queue.setLxcId(lxc.getId());
+//        queue.setEndTime(superLxc.getDead());
+//        queue.setSuperName(lxc.getName());
+//        queue.setTgId(loginUser.getTgId());
+//        queue.setIp(lxc.getSuperIp());
+//        queue.setSshPort(lxc.getSshPort());
+//        baseMapper.insert(queue);
+//
+//        // 缓存申请信息（用于后续重建等操作）
+//        String keyOfApplyVo = String.format(CacheNames.LXC_APPLY_VO, lxc.getId());
+//        if (RedisUtils.getCacheObject(keyOfApplyVo) == null) {
+//            RedisUtils.setCacheObject(keyOfApplyVo, lxcApplyBo);
+//        }
+//        String keyOfSuperLxc = String.format(CacheNames.LXC_SUPER_LXC_RESET, lxc.getId());
+//        RedisUtils.setCacheObject(keyOfSuperLxc, superLxc);
+//
+//        return null;
+//    }
 
 
     public static ShellDto prepareCreateShellDto(LxcSuperLxcVo lxcSuperLxcVo, LxcLxcVo lxc) {
@@ -500,7 +626,21 @@ public class LxcQueueServiceImpl extends BaseService<LxcQueueMapper, LxcQueue> i
 
     @Override
     public List<LxcQueueVo> queryAllLxc(String tgId, String nowDateTime) {
-        return baseMapper.queryAllLxc(tgId, nowDateTime);
+        // 定义缓存 key
+        String cacheKey = "lxc:queue:all:" + tgId + ":" + nowDateTime;
+        // 尝试从 Redis 中获取缓存数据
+        List<LxcQueueVo> queueList = redisUtils.getCacheObject(cacheKey);
+        if (queueList != null) {
+            // 若缓存中存在数据，直接返回
+            return queueList;
+        }
+        // 若缓存中不存在数据，从数据库中查询
+        queueList = baseMapper.queryAllLxc(tgId, nowDateTime);
+        if (queueList != null && !queueList.isEmpty()) {
+            // 将查询结果存入 Redis 缓存，设置缓存过期时间，这里假设为 1 分钟
+            redisUtils.setCacheObject(cacheKey, queueList, Duration.ofMinutes(Constants.DEFAULT_SAVE_MINUTE));
+        }
+        return queueList;
     }
 
 
@@ -564,21 +704,22 @@ public class LxcQueueServiceImpl extends BaseService<LxcQueueMapper, LxcQueue> i
         return baseMapper.delete(new QueryWrapper<LxcQueue>().eq("lxc_id", lxcId));
     }
 
+    /**
+     * 访问lxc官方服务器获取对应宿主机ip上的容器信息
+     * @param ip
+     * @return
+     */
     @Override
     public BackgroundOperationResponse getAllInstancesBase(String ip) {
-        // 直接从数据库读取
-        QueryWrapper<LxcSuperLxc> queryWrapper = new QueryWrapper<>();
-        queryWrapper
-//            .select("way")
-            .eq("ip",ip);
-        LxcSuperLxc lxcSuperLxc = lxcSuperLxcService.getOne(queryWrapper);
-        String way = lxcSuperLxc.getWay();
-        System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>  " + way);
-//        LxcSuperLxcVo lxcSuperLxcVo = lxcSuperLxcService.queryByIp(ip);
-
+        // 直接从数据库读取宿主机
+//        QueryWrapper<LxcSuperLxc> queryWrapper = new QueryWrapper<>();
+//        queryWrapper
+////            .select("way")
+//            .eq("ip",ip);
+//        LxcSuperLxc lxcSuperLxc = lxcSuperLxcService.getOne(queryWrapper);
         String lxcPort = LxcConstants.LXD_PORT;
         try {
-            // 目的是调用LXC的REST API创建实例
+            // 目的是调用LXC的REST API获取远程机器上有多少个容器实例
             return lxcApi.of(ip,lxcPort).getInstances(null, null);
         } catch (ApiException e) {
             throw new RuntimeException(e);

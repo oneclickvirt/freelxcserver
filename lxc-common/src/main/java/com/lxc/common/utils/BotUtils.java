@@ -19,9 +19,9 @@ public class BotUtils {
         String status = "left";
 
         DefaultBotOptions botOptions = new DefaultBotOptions();
-        //botOptions.setProxyHost("127.0.0.1");
-        //botOptions.setProxyPort(1080);
-        //botOptions.setProxyType(DefaultBotOptions.ProxyType.SOCKS5);
+        botOptions.setProxyHost("127.0.0.1");
+        botOptions.setProxyPort(1080);
+        botOptions.setProxyType(DefaultBotOptions.ProxyType.SOCKS5);
 
         DefaultAbsSender sender = new DefaultAbsSender(botOptions) {
             @Override
@@ -36,19 +36,19 @@ public class BotUtils {
         getChatMember.setChatId(ChatId);
         getChatMember.setUserId(userId);
         //TODO 不获取用户信息
-      /*  try {
-            ChatMember chatMember = sender.execute(getChatMember);
-            status = chatMember.getStatus();
-        } catch (TelegramApiException e) {
-            ChatMember chatMember = null;
-            try {
-                chatMember = sender.execute(getChatMember);
-                status = chatMember.getStatus();
-            } catch (TelegramApiException ex) {
-                log.error("获取用户状态失败", ex);
-            }
-
-        }*/
+//      /*  try {
+//            ChatMember chatMember = sender.execute(getChatMember);
+//            status = chatMember.getStatus();
+//        } catch (TelegramApiException e) {
+//            ChatMember chatMember = null;
+//            try {
+//                chatMember = sender.execute(getChatMember);
+//                status = chatMember.getStatus();
+//            } catch (TelegramApiException ex) {
+//                log.error("获取用户状态失败", ex);
+//            }
+//
+//        }*/
 
         switch (status) {
             case "member":

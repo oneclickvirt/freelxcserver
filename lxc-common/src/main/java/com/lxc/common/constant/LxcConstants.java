@@ -4,7 +4,6 @@ public interface LxcConstants {
 
 //    String BASE_URL = "https://%s:8443";
     String LXD_PORT = "8443";
-    String INCUS_PORT = "9969";
 
     String BOOT_NAME = "lxc_testing_bot";
 

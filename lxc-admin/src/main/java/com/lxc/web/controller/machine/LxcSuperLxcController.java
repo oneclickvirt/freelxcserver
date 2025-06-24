@@ -2,9 +2,12 @@ package com.lxc.web.controller.machine;
 
 import cn.dev33.satoken.annotation.SaCheckPermission;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lxc.common.annotation.Log;
 import com.lxc.common.annotation.RepeatSubmit;
 import com.lxc.common.constant.CacheNames;
+import com.lxc.common.constant.Constants;
 import com.lxc.common.core.controller.BaseController;
 import com.lxc.common.core.domain.PageQuery;
 import com.lxc.common.core.domain.R;
@@ -25,11 +28,14 @@ import com.lxc.machine.domain.vo.LxcCartVo;
 import com.lxc.machine.domain.vo.LxcSuperLxcVo;
 import com.lxc.machine.mapper.LxcLxcMapper;
 import com.lxc.machine.mapper.LxcSuperLxcMapper;
-import com.lxc.machine.service.ILxcLxcService;
 import com.lxc.machine.service.ILxcSuperLxcService;
 import com.lxc.machine.service.ISysLxcRoleService;
 import com.lxc.machine.service.ISysSuperRoleService;
+import com.lxc.web.controller.config.ImageSourceConfig;
 import lombok.RequiredArgsConstructor;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 import org.json.JSONException;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -37,7 +43,11 @@ import org.springframework.web.bind.annotation.*;
 import javax.servlet.http.HttpServletResponse;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
+import java.io.IOException;
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -57,8 +67,6 @@ public class LxcSuperLxcController extends BaseController {
 
     private final ILxcSuperLxcService lxcSuperLxcService;
 
-    private final ILxcLxcService lxcLxcService;
-
     private final LxcSuperLxcMapper superLxcMapper;
 
     private final LxcLxcMapper lxcMapper;
@@ -67,8 +75,114 @@ public class LxcSuperLxcController extends BaseController {
 
     private final ISysSuperRoleService sysSuperRoleService;
 
+    private final ImageSourceConfig imageSourceConfig;
 
+    @SaCheckPermission("lxc:superLxc:list")
+    @GetMapping("/getImageAlias/{way}")
+    public R<List<String>> getImageAlias(@PathVariable String way) {
+        String preCmd = "lxd".equals(way) ? "lxc" : "incus";
+        String jsonData = RedisUtils.getCacheObject(preCmd + CacheNames.IMAGE_ALIAS);
+        if (null == jsonData) {
+            try {
+                String jsonUrl = "lxd".equals(way) ? imageSourceConfig.getLxcUrl() : imageSourceConfig.getIncusUrl();
+                // 1. 发送HTTP请求获取JSON数据
+                jsonData = fetchJsonData(jsonUrl);
+                // redis保存一份镜像源数据
+                RedisUtils.setCacheObject(preCmd + CacheNames.IMAGE_ALIAS, jsonData, Duration.ofMinutes(Constants.DEFAULT_SAVE_MINUTE));
 
+                List<String> res = getAliasList(jsonData);
+                return R.ok(res);
+            } catch (IOException e) {
+                System.err.println("处理过程中发生错误：" + e.getMessage());
+                e.printStackTrace();
+                return R.fail("获取镜像Alias失败");
+            }
+        } else {
+            try {
+                List<String> res = getAliasList(jsonData);
+                return R.ok(res);
+            } catch (IOException e) {
+                System.err.println("处理过程中发生错误：" + e.getMessage());
+                e.printStackTrace();
+                return R.fail("获取镜像Alias失败");
+            }
+        }
+    }
+
+    @org.jetbrains.annotations.NotNull
+    private List<String> getAliasList(String jsonData) throws IOException {
+        // 2. 解析JSON并提取所有alias
+        List<String> aliases = extractAliases(jsonData);
+        List<String> res = new ArrayList<>();
+
+        // 3. 输出结果
+        System.out.println("提取到的alias列表（共" + aliases.size() + "个）：");
+        for (String alias : aliases) {
+            if (alias.contains(",")) {
+                // 有些alias存在多个，用逗号隔开，在创建容器的时候只选其一即可
+                alias = alias.split(",")[0];
+            }
+            res.add(alias);
+            System.out.println("- " + alias);
+        }
+        return res;
+    }
+
+    /**
+     * 发送HTTP请求获取JSON数据
+     */
+    private String fetchJsonData(String url) throws IOException {
+        OkHttpClient client = new OkHttpClient.Builder()
+            .followRedirects(true)
+            .followSslRedirects(true)
+            .build();
+
+        Request request = new Request.Builder()
+            .url(url)
+            .get()
+            .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/91.0.4472.124")
+            .addHeader("Accept", "application/json")
+            .build();
+
+        try (Response response = client.newCall(request).execute()) {
+            if (!response.isSuccessful()) {
+                throw new IOException("HTTP错误：" + response.code() + " - " + response.message());
+            }
+            return response.body().string();
+        }
+    }
+
+    /**
+     * 解析JSON并提取所有alias
+     */
+    private List<String> extractAliases(String jsonData) throws IOException {
+        List<String> aliases = new ArrayList<>();
+        ObjectMapper objectMapper = new ObjectMapper();
+        JsonNode rootNode = objectMapper.readTree(jsonData);
+
+        // 检查根节点是否存在products字段
+        if (!rootNode.has("products")) {
+            System.err.println("JSON中未找到products字段");
+            return aliases;
+        }
+
+        JsonNode productsNode = rootNode.get("products");
+        Iterator<String> productKeys = productsNode.fieldNames();
+
+        // 遍历所有product节点
+        while (productKeys.hasNext()) {
+            String productKey = productKeys.next();
+            JsonNode productNode = productsNode.get(productKey);
+
+            // 检查当前product节点是否存在aliases字段
+            if (productNode.has("aliases")) {
+                String alias = productNode.get("aliases").asText();
+                aliases.add(alias);
+            }
+        }
+
+        return aliases;
+    }
     /**
      * 查询母鸡信息列表
      */

@@ -84,58 +84,8 @@ public class InstancesUtils {
             log.error("Response Body: " + e.getResponseBody());
             throw new RuntimeException(e);
         }
-
-//        log.info("Create Instance Response >>>>>>>>>> " + actualCreateInstancesResponse);
-//        assertTrue((Objects.equals(actualCreateInstancesResponse.getStatusCode(), 200)) || Objects.equals(actualCreateInstancesResponse.getStatusCode(), 100));
     }
 
-//    public void postInstancesAsync(LxcLxc lxc, LxcSuperLxc superLxc, LxcApplyBo lxcApplyBo) throws Exception {
-//        String target = null;
-//        final String architecture = "x86_64";
-//        final String type = "container";
-//        final String nameOfContainer = lxc.getChildName();
-//
-//        SourceConfigBuilder sourceConfigBuilder = prepareSourceConfigBuilder(superLxc, lxcApplyBo.getMirrorImage());
-//        DevicesRoot devicesRoot = prepareDevicesRoot(superLxc);
-//        InstanceConfigBuilder configBuilder = prepareInstanceConfigBuilder(superLxc);
-//
-//        List<String> profiles = new ArrayList<>();
-//        profiles.add("default");
-//
-//        CreateInstancesRequest createInstancesRequest = populateCreateInstancesRequest(
-//            devicesRoot,
-//            sourceConfigBuilder.asMap(),
-//            type,
-//            profiles,
-//            architecture,
-//            nameOfContainer,
-//            configBuilder.asMap(),
-//            false
-//        );
-//
-//        // 使用 CompletableFuture 异步调用 LXD API
-//        CompletableFuture<BackgroundOperationResponse> future = CompletableFuture.supplyAsync(() -> {
-//            try {
-//                return this.instancesApi.postInstances(target, createInstancesRequest);
-//            } catch (ApiException e) {
-//                log.error("LXD API Exception: " + e.getMessage());
-//                log.error("HTTP Status Code: " + e.getCode());
-//                log.error("Response Body: " + e.getResponseBody());
-//                throw new RuntimeException(e);
-//            }
-//        });
-//
-//        // 处理异步结果
-//        future.thenAccept(response -> {
-//            log.info("Create Instance Response >>>>>>>>>> " + response);
-//            if (!(Objects.equals(response.getStatusCode(), 200) || Objects.equals(response.getStatusCode(), 100))) {
-//                log.error("Failed to create instance with status code: " + response.getStatusCode());
-//            }
-//        }).exceptionally(ex -> {
-//            log.error("Error occurred while creating instance: " + ex.getMessage());
-//            return null;
-//        });
-//    }
 // 原方法返回类型从 void 改为 CompletableFuture<Void>，支持异步结果监听
 public CompletableFuture<Void> postInstancesAsync(LxcLxc lxc, LxcSuperLxc superLxc, LxcApplyBo lxcApplyBo) {
     // 从 superLxc 获取目标节点（假设存在该字段，解决 target 为 null 的问题）
@@ -219,9 +169,25 @@ public CompletableFuture<Void> postInstancesAsync(LxcLxc lxc, LxcSuperLxc superL
         return new SourceConfigBuilder()
             .setType("image")
             .setAlias("debian/11")
-            .setServer("https://images.linuxcontainers.org")
+            .setServer("https://lxdimages.spiritlhl.net/")
             .setProtocol("simplestreams")
             .setMode("pull");
+        /**
+         *             [{
+         *               "type": "image",
+         *               "alias": alias,
+         *               // "remoteImage": "spiritlhl", // 远程镜像源直接写死
+         *               "server": "https://lxdimages.spiritlhl.net/",
+         *               "protocol": "simplestreams",
+         *               "mode": "pull"
+         *             }]
+         */
+//        return new SourceConfigBuilder()
+//            .setType("image")
+//            .setAlias("debian/11")
+//            .setServer("https://images.linuxcontainers.org")
+//            .setProtocol("simplestreams")
+//            .setMode("pull");
         /**
          * [{"type":"image","alias":"debian/12","server":"https://images.opsmaru.dev/spaces/43ad54472be82d7236eea3d1","protocol":"simplestreams","mode":"pull"},{"type":"image","alias":"ubuntu/22.04","server":"https://images.opsmaru.dev/spaces/43ad54472be82d7236eea3d1","protocol":"simplestreams","mode":"pull"}]
          */

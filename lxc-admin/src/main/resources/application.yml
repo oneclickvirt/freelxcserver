@@ -273,3 +273,7 @@ bot:
   downloadRootFolder: /path/to/save/photo
   downloadedRecord: history.txt #相对上一个目录
   webHookUrl: https://www.yourdomain/your/path/to/webHook
+
+imagejsonurl:
+  lxcUrl: "https://lxdimages.spiritlhl.net/streams/v1/spiritlhl.json"
+  incusUrl: "https://incusimages.spiritlhl.net/streams/v1/spiritlhl.json"

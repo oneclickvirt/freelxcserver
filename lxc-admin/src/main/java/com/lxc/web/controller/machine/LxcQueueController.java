@@ -138,112 +138,6 @@ public class LxcQueueController extends BaseController {
         }
     }*/
 
-// todo
-/*    @SaCheckPermission("lxc:lxc:all")
-    @RateLimiter(count = 3, time = 20, limitType = LimitType.IP)
-    @Log(title = "自助领取小鸡", businessType = BusinessType.INSERT)
-    @PostMapping("/applyLxc")
-    @RepeatSubmit()
-    public R<Object> applyLxc(@RequestBody @Validated(LxcAddGroup.class) LxcApplyBo lxcApplyBo) {
-        LoginUser loginUser = this.getLoginUser();
-        String tgId = loginUser.getTgId();
-
-        Long lxcSuperId = lxcApplyBo.getLxcSuperId();
-        String keyOfFree = String.format(CacheNames.LXC_SUPER_APPLY_FREE, lxcSuperId);
-        String keyOfUsed = String.format(CacheNames.LXC_SUPER_APPLY_USED, lxcSuperId);
-        long preFree = RedisUtils.getAtomicValue(keyOfFree);
-        log.info("{}剩余可开小鸡数量:{}", lxcSuperId, preFree);
-        if (preFree <= 0) {
-            return R.fail("来晚啦，小鸡已经被抢光了");
-        }
-
-        LxcUser tgUser = loginUser.getLxcUser();
-
-        if (!BotUtils.isMember(LxcConstants.CHAT_ID, Long.valueOf(tgId))) {
-            return R.fail(1403);  // TODO 改了验证
-        }
-
-        long count = lxcUserService.count(new QueryWrapper<LxcUser>().eq("tg_id", tgId));
-        if (count <= 0) {
-            return R.fail("用户信息不存在");
-        }
-
-        LxcSuperLxc superLxc = lxcSuperLxcService.getById(lxcSuperId);
-        // 母鸡可领取状态是“母鸡列表”中的“是否可领取小鸡”开关设置
-        String superStatus = superLxc.getSuperStatus();
-        if (StringUtils.equals(superStatus, LxcConstants.LXC_SUPER_DISABLED)) {
-            return R.fail("该母鸡已禁止自助领取");
-        }
-        // 过期标志 防止过期标志没有被及时更改，获取过期日期与当前日期进行对比
-        Date dead = DateUtils.dateTime(DateUtils.YYYY_MM_DD, superLxc.getDead());
-        Date now = new Date();
-        if (now.compareTo(dead) > 0 || superLxc.getExpireFlag().equals(LxcConstants.LXC_SUPER_EXPIRED)) {
-            RedisUtils.setAtomicValue(keyOfFree, 0);
-            return R.fail("该母鸡已过期，请联系站长");
-        }
-
-        // 查询母鸡-角色表中特定母鸡ip的记录列表，是有权限在该母鸡领取小鸡的角色的记录
-        SysSuperRoleBo sysSuperRoleBo = new SysSuperRoleBo();
-        sysSuperRoleBo.setSuperId(superLxc.getId());
-        List<SysSuperRoleVo> sysSuperRoleVos = sysSuperRoleService.queryList(sysSuperRoleBo);
-
-        // 判断是否有角色权限领取小鸡
-        if (!sysSuperRoleVos.isEmpty()) {
-            AtomicBoolean flag = new AtomicBoolean(false);
-            sysSuperRoleVos.parallelStream()
-                // 从登录的用户信息里取出角色id，筛选对应角色id的记录
-                .filter(sysSuperRoleVo -> loginUser.hasRole(sysSuperRoleVo.getRoleId()))
-                .findFirst()
-                // 如果用户有角色权限，则把标志位设为true
-                .ifPresent(sysSuperRoleVo -> flag.set(true));
-            if (!flag.get()) {
-                return R.fail("你没有领取权限");
-            }
-        } else {
-            return R.fail("该母鸡没有设置领取权限,请联系站长");
-        }
-
-        Long lxcQuota = tgUser.getLxcQuota();
-        // 统计该tgId用户已领取了多少小鸡
-        long countUserUsed = lxcLxcService.countUsedByTgId(tgId);
-        if (lxcQuota - countUserUsed <= 0) {
-            return R.fail(HttpStatus.HTTP_NOT_ACCEPTABLE, "配额不足");
-        }
-        // 获取一个对象的值(CacheNames.LXC_SUPER_APPLY_LOCK)作为写锁
-        // 涉及可能超额领取风险，加分布式锁 写锁【分别是母鸡可能多减了一个、用户多领了一个，毕竟多线程同时i--可能会不止减一次】
-        RReadWriteLock readWriteLock = RedisUtils.getClient().getReadWriteLock(CacheNames.LXC_SUPER_APPLY_LOCK + lxcSuperId);
-        RLock rLock = readWriteLock.writeLock();
-        rLock.lock();
-        // 先更新缓存？再更新数据库
-        try {
-            // 缓存减了1，但用户看见的应该是没减1的数量，报错时会回退这个decrAtomicValue
-            long free = RedisUtils.decrAtomicValue(keyOfFree) + 1;
-            log.info("{}剩余可开小鸡数量:{}", lxcSuperId, free);
-            if (free <= 0) {
-                return R.fail("来晚啦，小鸡已领完");
-            }
-            // 缓存加了1，但用户看见的应该是没加1的数量，报错时会回退这个incrAtomicValue
-            long used = RedisUtils.incrAtomicValue(keyOfUsed) - 1;
-            log.info("{}已领取小鸡数量:{}", lxcSuperId, used);
-            R<Object> exception = lxcQueueService.applyLxc(superLxc, loginUser, lxcApplyBo);
-            if (exception != null) {
-                return exception;
-            }
-            // 这里是新增小鸡会导致数据库小鸡数量变化，和缓存不一致，因此把空闲小鸡列表和主页统计的对应值删掉，下次从数据库重新同步
-            RedisUtils.deleteKeys(CacheNames.FREE_LXC_LIST + "*");
-            RedisUtils.deleteKeys(CacheNames.STATISTICS_LXC_LIST);
-
-        } catch (Exception e) {
-            RedisUtils.incrAtomicValue(keyOfFree);
-            RedisUtils.decrAtomicValue(keyOfUsed);
-            log.error("领取小鸡异常", e);
-            return R.fail("创建异常，请联系站长");
-        } finally {
-            rLock.unlock();
-        }
-        return R.success("申请成功，请等待小鸡创建。若长时间未创建，请联系站长");
-    }*/
-
     @SaCheckPermission("lxc:lxc:all")
     @RateLimiter(count = 3, time = 20, limitType = LimitType.IP)
     @Log(title = "自助领取小鸡", businessType = BusinessType.INSERT)
@@ -353,6 +247,11 @@ public class LxcQueueController extends BaseController {
         return R.ok("获取成功", queueList);
     }
 
+    /**
+     * 手动重建容器——删掉旧的，创建新的
+     * @param childName
+     * @return
+     */
     @SaCheckPermission("lxc:lxc:all")
     @PostMapping("/resetLxc/{childName}")
     public R<String> resetUserLxcByName(@PathVariable String childName) {
@@ -690,11 +589,11 @@ public class LxcQueueController extends BaseController {
 //        }
 
         // 过期标志 防止过期标志没有被及时更改，获取过期日期与当前日期进行对比
-        Date dead = DateUtils.dateTime(DateUtils.YYYY_MM_DD, "2025-05-31");
-        Date now = new Date();
-        System.out.println("dead:"+dead);
-        System.out.println("now:"+now);
-        System.out.println(dead.compareTo(now) > 0);
+//        Date dead = DateUtils.dateTime(DateUtils.YYYY_MM_DD, "2025-05-31");
+//        Date now = new Date();
+//        System.out.println("dead:"+dead);
+//        System.out.println("now:"+now);
+//        System.out.println(dead.compareTo(now) > 0);
     }
 
     @SaCheckPermission("lxc:lxc:list")

@@ -73,9 +73,9 @@ public interface Constants {
     String TOKEN = "token";
 
     /**
-     * 默认保存分钟数，10分钟
+     * 默认保存分钟数，1分钟
      */
-    Long DEFAULT_SAVE_MINUTE = 10L;
+    Long DEFAULT_SAVE_MINUTE = 1L;
 
 }
 

@@ -187,7 +187,7 @@ public class RelxdApiClient extends ApiClient {
         if ((super.getBasePath() != null) && (super.getBasePath().contains("https"))) {
 
             try {
-                //Connect to the keystore to get certificate
+                // Connect to the keystore to get certificate
                 KeyStore keyStore = javaKeyStoreService.getKeyStore(javaKeyStoreFilePath, javaKeyStorePassword);
 
                 //Initialise an SSL Context

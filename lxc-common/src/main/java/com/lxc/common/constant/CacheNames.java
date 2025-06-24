@@ -108,5 +108,10 @@ public interface CacheNames {
      * 重建前小鸡的状态
      */
     String LXC_ORIGINAL_STATUS = "lxc:beforeReset:%s:lxcStatus";
+    /**
+     * 镜像源别名
+     */
+    String IMAGE_ALIAS = ":super:alias";
+
 
 }

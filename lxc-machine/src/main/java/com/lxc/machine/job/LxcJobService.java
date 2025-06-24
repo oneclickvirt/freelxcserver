@@ -26,6 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.junit.Test;
 import org.relxd.lxd.ApiException;
 import org.relxd.lxd.api.InstancesApi;
+import org.relxd.lxd.model.BackgroundOperationResponse;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
@@ -81,8 +82,10 @@ public class LxcJobService {
                             System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>  " + way);
                             String lxcPort = LxcConstants.LXD_PORT;
                             try {
-                                // incus和lxc只会才服务器上存在其中一个，获取小鸡实例不涉及incus或lxc的命令前缀
-                                lxcApi.of(superIp,lxcPort).getInstancesByNameState(lxcVoList.get(i).getChildName(), null, null);
+                                // incus和lxc只会在服务器上存在其中一个，获取小鸡实例不涉及incus或lxc的命令前缀
+                                BackgroundOperationResponse instancesByNameState = lxcApi.of(superIp, lxcPort).getInstancesByNameState(lxcVoList.get(i).getChildName(), null, null);
+//                                System.out.println("当前小鸡 " + lxcVoList.get(i).getChildName() + " 的状态：" + instancesByNameState);
+                                log.info("等待创建的小鸡{}，它的信息为{}", lxcVoList.get(i).getChildName(), instancesByNameState);
                                 index = i;
                                 break;
                             } catch (ApiException e) {
@@ -105,9 +108,11 @@ public class LxcJobService {
                             log.info("小鸡创建信息：{}", shellDto);
                             // 这里在linux服务器上调用modify.sh来初始化小鸡状态
                             // ⭐⭐⭐这里是执行modify.sh生成 container 和 container_init.log 两个文件的关键步骤，只有 container 文件生成了，checkLxcPending才会将容器的密码同步回来数据库
-                            ShellUtils.Shell shell = ShellUtils.initLxc(shellDto);
+
+                            /*ShellUtils.Shell shell = ShellUtils.initLxc(shellDto);
                             XxlJobHelper.log("小鸡{}初始化命令：{}", lxc.getChildName(), shell.getCmd());
-                            log.info("小鸡{}初始化命令：{}", lxc.getChildName(), shell.getCmd());
+                            log.info("小鸡{}初始化命令：{}", lxc.getChildName(), shell.getCmd());*/
+
                             LxcLxcBo temp = new LxcLxcBo();
                             temp.setLxcStatus(LxcStatus.PENDING.getCode()); // 2
                             temp.setId(lxc.getId());
@@ -456,9 +461,9 @@ public class LxcJobService {
                     );
                     if(list == null || list.size() == 0){
                         System.out.println("没有获取到流量使用情况");
+                    } else {
+                        System.out.println("该小鸡的流量使用情况为："+list);
                     }
-
-                    System.out.println("该小鸡的流量使用情况为："+list);
 
                     // TODO 用BigDecimal重写流量累积   lxcTraffic对应的java类型就是BigDecimal
                     BigDecimal summaryNetFlow = lxcLxcVo.getLxcTraffic();

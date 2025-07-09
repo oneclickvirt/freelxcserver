@@ -251,6 +251,9 @@ public class LxcQueueServiceImpl extends BaseService<LxcQueueMapper, LxcQueue> i
 
     /**
      * 原applyLxc
+     *
+     * @param tgId
+     * @param date
      * @param superLxc
      * @param loginUser
      * @param lxcApplyBo
@@ -345,7 +348,7 @@ public class LxcQueueServiceImpl extends BaseService<LxcQueueMapper, LxcQueue> i
      * 事务回滚无法回滚已执行的异步请求，还是要手动确认回滚
      */
 //    @Transactional(rollbackFor = Exception.class)
-    public R<Object> applyLxc(LxcSuperLxc superLxc, LoginUser loginUser, LxcApplyBo lxcApplyBo) {
+    public R<Object> applyLxc(String tgId, String date, LxcSuperLxc superLxc, LoginUser loginUser, LxcApplyBo lxcApplyBo) {
         LxcLxc lxc = new LxcLxc();
         String superLxcIp = superLxc.getIp();
         // redis缓存操作
@@ -388,6 +391,16 @@ public class LxcQueueServiceImpl extends BaseService<LxcQueueMapper, LxcQueue> i
             String lxcPort = LxcConstants.LXD_PORT;
             // 调用REST API执行lxd命令创建实例，重构成incus时改成okHttp来请求API
             InstancesUtils.target(superLxcIp,lxcPort).postInstances(lxc, superLxc, lxcApplyBo);
+
+            // 定义缓存 key
+            String cacheKey = "lxc:queue:all:" + tgId + ":" + date;
+            // 尝试从 Redis 中获取缓存数据
+            List<LxcQueueVo> queueList = redisUtils.getCacheObject(cacheKey);
+            if (queueList != null) {
+                // 若缓存中存在数据，更新缓存
+                redisUtils.setCacheObject(cacheKey, queueMapper.queryAllLxc(tgId, date), Duration.ofMinutes(Constants.DEFAULT_SAVE_MINUTE));
+            }
+
             // 申请小鸡成功，清理缓存（保持数据一致性）
             RedisUtils.deleteKeys(CacheNames.FREE_LXC_LIST + "*");
             RedisUtils.deleteKeys(CacheNames.STATISTICS_LXC_LIST);
@@ -644,4 +657,5 @@ public class LxcQueueServiceImpl extends BaseService<LxcQueueMapper, LxcQueue> i
         eq.eq(LxcQueue::getTgId, tgId);
         return baseMapper.selectCount(eq) > 0;
     }
+
 }

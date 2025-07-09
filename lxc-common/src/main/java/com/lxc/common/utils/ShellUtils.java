@@ -136,7 +136,6 @@ public class ShellUtils {
         List<String> result;
     }
 
-
 //    public String checkWhichPort(String superIp){
 //        List<String> list = new ArrayList<>();
 //        LxcSuperLxcVo lxcSuperLxcVo = lxcSuperLxcService.queryByIp(superIp);
@@ -616,6 +615,8 @@ public class ShellUtils {
         return response != null;
     }
 
+
+
     public static Shell initLxc(ShellDto sshDto) {
         //1、利用JschUtil获取会话连接
         Session session = JschUtil.getSession(sshDto.getIp(), sshDto.getSshPort(), sshDto.getUsername(), sshDto.getPassword());
@@ -852,11 +853,6 @@ public class ShellUtils {
             JschUtil.close(channel);
         }
     }
-
-
-
-
-
 }
 
 

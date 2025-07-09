@@ -45,9 +45,9 @@ public class CreateInstancesByNameExecRequest {
     @SerializedName(SERIALIZED_NAME_WAIT_FOR_WEBSOCKET)
     private Boolean waitForWebsocket;
 
-    public static final String SERIALIZED_NAME_RECORD_OUTPUT = "record-output";
-    @SerializedName(SERIALIZED_NAME_RECORD_OUTPUT)
-    private Boolean recordOutput;
+//    public static final String SERIALIZED_NAME_RECORD_OUTPUT = "record-output";
+//    @SerializedName(SERIALIZED_NAME_RECORD_OUTPUT)
+//    private Boolean recordOutput;
 
     public static final String SERIALIZED_NAME_INTERACTIVE = "interactive";
     @SerializedName(SERIALIZED_NAME_INTERACTIVE)
@@ -197,27 +197,27 @@ public class CreateInstancesByNameExecRequest {
     }
 
 
-    public CreateInstancesByNameExecRequest recordOutput(Boolean recordOutput) {
-
-        this.recordOutput = recordOutput;
-        return this;
-    }
+//    public CreateInstancesByNameExecRequest recordOutput(Boolean recordOutput) {
+//
+//        this.recordOutput = recordOutput;
+//        return this;
+//    }
 
     /**
      * Whether to store stdout and stderr (only valid with wait-for-websocket&#x3D;false) (requires API extension container_exec_recording)
      *
      * @return recordOutput
      **/
-    @ApiModelProperty(example = "false", required = true, value = "Whether to store stdout and stderr (only valid with wait-for-websocket=false) (requires API extension container_exec_recording)")
+//    @ApiModelProperty(example = "false", required = true, value = "Whether to store stdout and stderr (only valid with wait-for-websocket=false) (requires API extension container_exec_recording)")
+//
+//    public Boolean getRecordOutput() {
+//        return recordOutput;
+//    }
 
-    public Boolean getRecordOutput() {
-        return recordOutput;
-    }
 
-
-    public void setRecordOutput(Boolean recordOutput) {
-        this.recordOutput = recordOutput;
-    }
+//    public void setRecordOutput(Boolean recordOutput) {
+//        this.recordOutput = recordOutput;
+//    }
 
 
     public CreateInstancesByNameExecRequest interactive(Boolean interactive) {
@@ -377,7 +377,7 @@ public class CreateInstancesByNameExecRequest {
             Objects.equals(this.args, createInstancesByNameExecRequest.args) &&
             Objects.equals(this.environment, createInstancesByNameExecRequest.environment) &&
             Objects.equals(this.waitForWebsocket, createInstancesByNameExecRequest.waitForWebsocket) &&
-            Objects.equals(this.recordOutput, createInstancesByNameExecRequest.recordOutput) &&
+//            Objects.equals(this.recordOutput, createInstancesByNameExecRequest.recordOutput) &&
             Objects.equals(this.interactive, createInstancesByNameExecRequest.interactive) &&
             Objects.equals(this.width, createInstancesByNameExecRequest.width) &&
             Objects.equals(this.height, createInstancesByNameExecRequest.height) &&
@@ -388,7 +388,8 @@ public class CreateInstancesByNameExecRequest {
 
     @Override
     public int hashCode() {
-        return Objects.hash(command, signal, args, environment, waitForWebsocket, recordOutput, interactive, width, height, user, group, cwd);
+//        return Objects.hash(command, signal, args, environment, waitForWebsocket, recordOutput, interactive, width, height, user, group, cwd);
+        return Objects.hash(command, signal, args, environment, waitForWebsocket, interactive, width, height, user, group, cwd);
     }
 
 
@@ -401,7 +402,7 @@ public class CreateInstancesByNameExecRequest {
         sb.append("    args: ").append(toIndentedString(args)).append("\n");
         sb.append("    environment: ").append(toIndentedString(environment)).append("\n");
         sb.append("    waitForWebsocket: ").append(toIndentedString(waitForWebsocket)).append("\n");
-        sb.append("    recordOutput: ").append(toIndentedString(recordOutput)).append("\n");
+//        sb.append("    recordOutput: ").append(toIndentedString(recordOutput)).append("\n");
         sb.append("    interactive: ").append(toIndentedString(interactive)).append("\n");
         sb.append("    width: ").append(toIndentedString(width)).append("\n");
         sb.append("    height: ").append(toIndentedString(height)).append("\n");

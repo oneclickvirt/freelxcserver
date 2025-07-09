@@ -10,9 +10,11 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.jcraft.jsch.Session;
 import com.lxc.common.constant.CacheNames;
+import com.lxc.common.constant.Constants;
 import com.lxc.common.core.domain.PageQuery;
 import com.lxc.common.core.domain.dto.RoleDTO;
 import com.lxc.common.core.page.TableDataInfo;
+import com.lxc.common.utils.DateUtils;
 import com.lxc.common.utils.ShellUtils;
 import com.lxc.common.utils.StringUtils;
 import com.lxc.common.utils.redis.RedisUtils;
@@ -22,6 +24,7 @@ import com.lxc.machine.domain.LxcQueue;
 import com.lxc.machine.domain.LxcSuperLxc;
 import com.lxc.machine.domain.bo.LxcLxcBo;
 import com.lxc.machine.domain.vo.LxcLxcVo;
+import com.lxc.machine.domain.vo.LxcQueueVo;
 import com.lxc.machine.mapper.LxcLxcMapper;
 import com.lxc.machine.mapper.LxcQueueMapper;
 import com.lxc.machine.mapper.SysLxcRoleMapper;
@@ -34,6 +37,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.util.*;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
@@ -51,6 +55,7 @@ public class LxcLxcServiceImpl extends BaseService<LxcLxcMapper, LxcLxc> impleme
     private final SysLxcRoleMapper sysLxcRoleMapper;
     private final LxcLxcMapper baseMapper;
     private final LxcQueueMapper lxcQueueMapper;
+    private RedisUtils redisUtils;
 
     @Lazy
     @Autowired
@@ -233,7 +238,22 @@ public class LxcLxcServiceImpl extends BaseService<LxcLxcMapper, LxcLxc> impleme
         Map<String, LxcSuperLxc> superMap = new HashMap<>();
         ids.forEach(id -> {
             LxcLxc lxcLxc = baseMapper.selectById(id);
+            // 删除后更新缓存
+            LambdaQueryWrapper<LxcQueue> queueLqw = new LambdaQueryWrapper<>();
+            queueLqw.eq(LxcQueue::getLxcId, id);
+            LxcQueue lxcQueue = lxcQueueService.getOne(queueLqw); // 目的是获取到tg_id
             lxcQueueService.delForceByLxcId(id);
+            // 定义缓存 key
+            String cacheKey = "lxc:queue:all:" + lxcQueue.getTgId() + ":" + DateUtils.getDate();
+            // 尝试从 Redis 中获取缓存数据
+            List<LxcQueueVo> queueList = redisUtils.getCacheObject(cacheKey);
+            if (queueList != null) {
+                // 若缓存中存在数据，更新缓存
+                LambdaQueryWrapper<LxcQueue> newQueueLqw = new LambdaQueryWrapper<>();
+                newQueueLqw.eq(LxcQueue::getTgId, lxcQueue.getTgId());
+                redisUtils.setCacheObject(cacheKey, lxcQueueService.list(newQueueLqw), Duration.ofMinutes(Constants.DEFAULT_SAVE_MINUTE));
+            }
+
             //删掉缓存中创建小鸡时的applyVo信息
             String keyOfApplyVo = String.format(CacheNames.LXC_APPLY_VO, id);
             if((RedisUtils.getCacheObject(keyOfApplyVo)) != null)
@@ -274,6 +294,7 @@ public class LxcLxcServiceImpl extends BaseService<LxcLxcMapper, LxcLxc> impleme
         superMap.forEach((k, v) -> {
             lxcSuperLxcService.setFreshCache(v);
         });
+
 
         return i > 0;
     }

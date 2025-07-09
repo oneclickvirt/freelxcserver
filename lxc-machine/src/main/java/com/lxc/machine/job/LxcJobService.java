@@ -19,6 +19,7 @@ import com.lxc.machine.domain.vo.LxcSuperLxcVo;
 import com.lxc.machine.service.ILxcLxcService;
 import com.lxc.machine.service.ILxcSuperLxcService;
 import com.lxc.machine.service.impl.LxcQueueServiceImpl;
+import com.lxc.machine.utils.InstancesUtils;
 import com.xxl.job.core.context.XxlJobHelper;
 import com.xxl.job.core.handler.annotation.XxlJob;
 import lombok.RequiredArgsConstructor;
@@ -72,6 +73,7 @@ public class LxcJobService {
                             .eq("super_ip", superIp)
                             .and(i -> i.eq("lxc_status", LxcStatus.PENDING.getCode()).or().eq("lxc_status", LxcStatus.FAILED_TO_CREATE.getCode()))
                     );
+                    log.info("宿主机{}的创建中的小鸡有{}个", superIp, pendingCount);
                     // 一次只能创建一个小鸡
                     if (pendingCount == 0) {
                         int size = lxcVoList.size();
@@ -109,9 +111,12 @@ public class LxcJobService {
                             // 这里在linux服务器上调用modify.sh来初始化小鸡状态
                             // ⭐⭐⭐这里是执行modify.sh生成 container 和 container_init.log 两个文件的关键步骤，只有 container 文件生成了，checkLxcPending才会将容器的密码同步回来数据库
 
+                            // todo 这里执行modify.sh，将modify.sh中所有命令拆开执行
                             /*ShellUtils.Shell shell = ShellUtils.initLxc(shellDto);
                             XxlJobHelper.log("小鸡{}初始化命令：{}", lxc.getChildName(), shell.getCmd());
                             log.info("小鸡{}初始化命令：{}", lxc.getChildName(), shell.getCmd());*/
+
+                            InstancesUtils.target(shellDto.getIp(), LxcConstants.LXD_PORT).execModifySh(shellDto, superLxcVo.getWay());
 
                             LxcLxcBo temp = new LxcLxcBo();
                             temp.setLxcStatus(LxcStatus.PENDING.getCode()); // 2
@@ -193,8 +198,13 @@ public class LxcJobService {
                 .eq("lxc_status", LxcStatus.RESETING.getCode()) // 0
                 .orderBy(true, true, "create_time")
         );
+        // 如果小鸡创建有问题，使用按时间升序排列会一直卡在某一个小鸡，如果是真的创建失败可以该状态为failed_to_create，否则应该跳过 TODO
         if (!lxcPendingList.isEmpty()) {
             XxlJobHelper.log("当前有{}个小鸡正在创建中", lxcPendingList.size());
+            log.info("当前有{}个小鸡正在创建中", lxcPendingList.size());
+
+            // todo 要判断排队中的小鸡是否在服务器实际已经存在或创建完成，有可能因为网络原因或其他误操作使得状态更新失败，需要流转状态为“创建失败”，否则会阻塞新的小鸡创建【不止这一处】
+
             // 给排队或重建中的小鸡都安排创建
             lxcPendingList.forEach(lxc -> {
                 try {
@@ -206,96 +216,122 @@ public class LxcJobService {
                     }
                     LxcSuperLxc superLxc = lxcSuperLxcService.getOne(new QueryWrapper<LxcSuperLxc>().eq("ip", superIp).last("LIMIT 1"));
                     String way = superLxc.getWay();
-                    ShellDto shellDto = ShellDto.builder()
-                        .ip(superLxc.getIp())
-                        .sshPort(Integer.valueOf(superLxc.getSshPort()))
-                        .username("root")
-                        .password(superLxc.getPassword())
-                        .way(way)
-                        .build();
-                    // ⭐⭐⭐容器密码返回
-                    String createCommand = String.format(ShellUtils.IF_PASSWD_FILE_EXIST, childName);;
-                    String hostInterfaceCommand = "";
-                    // ⭐⭐⭐容器接口返回
-                    if("lxd".equals(way)){
-                        hostInterfaceCommand = String.format(ShellUtils.GET_LXC_INTERFACE, childName);
-                    }
-                    if("incus".equals(way)){
-                        hostInterfaceCommand = String.format(ShellUtils.GET_INCUS_INTERFACE, childName);
-                    }
+                    try {
+                        ShellDto shellDto = ShellDto.builder()
+                            .ip(superLxc.getIp())
+                            .sshPort(Integer.valueOf(superLxc.getSshPort()))
+                            .username("root")
+                            .password(superLxc.getPassword())
+                            .way(way)
+                            .build();
+                        // ⭐⭐⭐容器密码返回
+                        String createCommand = String.format(ShellUtils.IF_PASSWD_FILE_EXIST, childName);
+                        String hostInterfaceCommand = "";
+//                        String statusCommand = "";
+                        // ⭐⭐⭐容器接口返回
+                        if("lxd".equals(way)){
+                            // todo 容器需要开机才能获取到veth接口
+//                            statusCommand = String.format(ShellUtils.GET_LXC_STATUS, childName);
+                            hostInterfaceCommand = String.format(ShellUtils.GET_LXC_INTERFACE, childName);
+                        }
+                        if("incus".equals(way)){
+                            // todo 容器需要开机才能获取到veth接口
+//                            statusCommand = String.format(ShellUtils.GET_INCUS_STATUS, childName);
+                            hostInterfaceCommand = String.format(ShellUtils.GET_INCUS_INTERFACE, childName);
+                        }
 
-                    // 判断小鸡容器和日志文件是否创建，如果存在，会返回true和小鸡密码
-                    List<String> out = ShellUtils.execCmdOutList(createCommand, ShellUtils.getSession(shellDto));
-                    System.out.println("容器和日志文件创建成功，容器密码同步到数据库：\n" + out.toString());
-                    // 这里获取不到小鸡密码也会导致最后创建失败
-                    if (out.size() == 2 && StringUtils.equals(out.get(0), "true")) {
-                        // such as :[true, 71a128da7]
-                        LxcLxcBo temp = new LxcLxcBo();
-                        temp.setLxcStatus(LxcStatus.RUNNING.getCode());
-                        temp.setId(lxc.getId());
-                        temp.setPassword(out.get(1));
-                        if (StringUtils.equals(superLxc.getIpv6Flag(), LxcConstants.LXC_IPV6_FLAG)) {
-                            String checkV6Command = String.format(ShellUtils.IF_IPV6_FILE_EXIST, childName);
-                            List<String> v6 = ShellUtils.execCmdOutList(checkV6Command, ShellUtils.getSession(shellDto));
-                            if (v6.size() == 1) {
-                                temp.setIpv6Addr(v6.get(0));
-                            } else {
-                                XxlJobHelper.log("{}  {}获取ipv6地址失败", lxc.getId(), childName);
-                            }
-                        }
-                        lxcService.updateByBoForce(temp);
-                        XxlJobHelper.log("{}  {}创建成功", lxc.getId(), childName);
-                        List<String> interfaceRes = ShellUtils.execCmdOutList(hostInterfaceCommand, ShellUtils.getSession(shellDto));
-                        // 如果获取接口命令返回值不以"veth"开头，则换一条命令
-                        if(!interfaceRes.get(0).startsWith("veth")){
-                            if("lxd".equals(way)){
-                                hostInterfaceCommand = ShellUtils.GET_LXC_INTERFACE_BACKUP;
-                            }
-                            if("incus".equals(way)){
-                                hostInterfaceCommand = ShellUtils.GET_INCUS_INTERFACE_BACKUP;
-                            }
-                            // veth获取不到接口名，换成获取eth0开头的的接口名
-                            interfaceRes = ShellUtils.execCmdOutList(hostInterfaceCommand, ShellUtils.getSession(shellDto));
-                        }
-//                        if (interfaceRes.size() == 1) {
-                        // 用eth0返回的主机接口名可能会有重复
-                        if (interfaceRes.size() >= 1) {
-                            String interfaceName = interfaceRes.get(0);
-                            if (StringUtils.equals("Error: Instance not found", interfaceName)) {
-                                XxlJobHelper.log("{}  {}获取网卡失败，原因：{}", lxc.getId(), childName, interfaceName);
-                                return;
-                            }
-                            temp.setHostInterface(interfaceName);
-                            lxcService.updateByBoForce(temp);
-                            try {
-                                // vnstat是通过网卡获取容器使用的流量的
-                                String vnstatCommand = String.format(ShellUtils.VNSTAT_ADD_INTERFACE, interfaceName);
-                                List<String> vnstatRes = ShellUtils.execCmdOutList(vnstatCommand, ShellUtils.getSession(shellDto));
-                                XxlJobHelper.log("{}  {}添加vnstat网卡：{}，结果：", lxc.getId(), childName, interfaceName);
-                                vnstatRes.forEach(XxlJobHelper::log);
-                                if (vnstatRes.size() > 1 && StringUtils.contains(vnstatRes.get(0), "Adding interface")) {
-                                    XxlJobHelper.log("{}  {}添加vnstat网卡成功", lxc.getId(), childName);
-                                } else {
-                                    XxlJobHelper.log("{}  {}添加vnstat网卡失败", lxc.getId(), childName);
-                                }
-                            } catch (Exception e) {
-                                XxlJobHelper.log("{}  {}添加vnstat网卡异常,{}", lxc.getId(), childName, e.getCause());
-                            }
-                        }
-                    } else {
-                        String format = ShellUtils.IF_LXD_WORK;
-                        List<String> work = ShellUtils.execCmdOutList(format, ShellUtils.getSession(shellDto));
-                        if (work.isEmpty()) {
+                        // 判断小鸡容器和日志文件是否创建，如果存在，会返回true和小鸡密码
+                        List<String> out = ShellUtils.execCmdOutList(createCommand, ShellUtils.getSession(shellDto));
+                        System.out.println("容器和日志文件创建成功，容器密码同步到数据库：\n" + out.toString());
+                        // 这里获取不到小鸡密码也会导致最后创建失败
+                        if (out.size() == 2 && StringUtils.equals(out.get(0), "true")) {
+                            // such as :[true, 71a128da7]
                             LxcLxcBo temp = new LxcLxcBo();
-                            temp.setLxcStatus(LxcStatus.FAILED_TO_CREATE.getCode());
+                            temp.setLxcStatus(LxcStatus.RUNNING.getCode());
                             temp.setId(lxc.getId());
+                            temp.setPassword(out.get(1));
+                            if (StringUtils.equals(superLxc.getIpv6Flag(), LxcConstants.LXC_IPV6_FLAG)) {
+                                String checkV6Command = String.format(ShellUtils.IF_IPV6_FILE_EXIST, childName);
+                                List<String> v6 = ShellUtils.execCmdOutList(checkV6Command, ShellUtils.getSession(shellDto));
+                                if (v6.size() == 1) {
+                                    temp.setIpv6Addr(v6.get(0));
+                                } else {
+                                    XxlJobHelper.log("{}  {}获取ipv6地址失败", lxc.getId(), childName);
+                                }
+                            }
                             lxcService.updateByBoForce(temp);
-                            XxlJobHelper.log("ID:{}  {}创建失败  {}", lxc.getId(), childName, format);
+                            XxlJobHelper.log("{}  {}创建成功", lxc.getId(), childName);
+//                            List<String> status = ShellUtils.execCmdOutList(statusCommand, ShellUtils.getSession(shellDto));
+//                            // 目前只考虑容器创建后未开机默认为STOPPED的情况
+//                            if ("STOPPED".equals(status)) {
+//                                // 开机获取接口信息
+//                                String res = ShellUtils.execCmdAndReturnStatus(
+//                                    ShellDto.builder()
+//                                        .ip(superIp)
+//                                        .password(superLxc.getPassword())
+//                                        .way(superLxc.getWay())
+//                                        .modifyType("start")
+//                                        .childName(childName)
+//                                        .build()
+//                                );
+//                                log.info("{}  {}开机命令执行结果：{}", lxc.getId(), childName, res);
+//                            }
+                            List<String> interfaceRes = ShellUtils.execCmdOutList(hostInterfaceCommand, ShellUtils.getSession(shellDto));
+                            // 如果获取接口命令返回值不以"veth"开头，则换一条命令
+                            if(!interfaceRes.get(0).startsWith("veth")){
+                                if("lxd".equals(way)){
+                                    hostInterfaceCommand = ShellUtils.GET_LXC_INTERFACE_BACKUP;
+                                }
+                                if("incus".equals(way)){
+                                    hostInterfaceCommand = ShellUtils.GET_INCUS_INTERFACE_BACKUP;
+                                }
+                                // veth获取不到接口名，换成获取eth0开头的的接口名
+                                interfaceRes = ShellUtils.execCmdOutList(hostInterfaceCommand, ShellUtils.getSession(shellDto));
+                            }
+//                        if (interfaceRes.size() == 1) {
+                            // 用eth0返回的主机接口名可能会有重复
+                            if (interfaceRes.size() >= 1) {
+                                String interfaceName = interfaceRes.get(0);
+                                if (StringUtils.equals("Error: Instance not found", interfaceName)) {
+                                    XxlJobHelper.log("{}  {}获取网卡失败，原因：{}", lxc.getId(), childName, interfaceName);
+                                    return;
+                                }
+                                temp.setHostInterface(interfaceName);
+                                lxcService.updateByBoForce(temp);
+                                try {
+                                    // vnstat是通过网卡获取容器使用的流量的
+                                    String vnstatCommand = String.format(ShellUtils.VNSTAT_ADD_INTERFACE, interfaceName);
+                                    List<String> vnstatRes = ShellUtils.execCmdOutList(vnstatCommand, ShellUtils.getSession(shellDto));
+                                    XxlJobHelper.log("{}  {}添加vnstat网卡：{}，结果：", lxc.getId(), childName, interfaceName);
+                                    vnstatRes.forEach(XxlJobHelper::log);
+                                    if (vnstatRes.size() > 1 && StringUtils.contains(vnstatRes.get(0), "Adding interface")) {
+                                        XxlJobHelper.log("{}  {}添加vnstat网卡成功", lxc.getId(), childName);
+                                    } else {
+                                        XxlJobHelper.log("{}  {}添加vnstat网卡失败", lxc.getId(), childName);
+                                    }
+                                } catch (Exception e) {
+                                    XxlJobHelper.log("{}  {}添加vnstat网卡异常,{}", lxc.getId(), childName, e.getCause());
+                                }
+                            }
                         } else {
-                            XxlJobHelper.log("ID:{}  {}还在创建中", lxc.getId(), childName);
+                            String format = ShellUtils.IF_LXD_WORK;
+                            List<String> work = ShellUtils.execCmdOutList(format, ShellUtils.getSession(shellDto));
+                            if (work.isEmpty()) {
+                                LxcLxcBo temp = new LxcLxcBo();
+                                temp.setLxcStatus(LxcStatus.FAILED_TO_CREATE.getCode());
+                                temp.setId(lxc.getId());
+                                lxcService.updateByBoForce(temp);
+                                XxlJobHelper.log("ID:{}  {}创建失败  {}", lxc.getId(), childName, format);
+                            } else {
+                                XxlJobHelper.log("ID:{}  {}还在创建中", lxc.getId(), childName);
+                            }
                         }
+                    } catch (Exception e) {
+                        log.info("宿主机密码错误，ssh连接失败");
+                        XxlJobHelper.log(e);
                     }
                 } catch (Exception e) {
+                    log.info("创建小鸡异常：{}", e);
                     XxlJobHelper.log(e);
                 }
             });
@@ -383,22 +419,6 @@ public class LxcJobService {
             }
         }
     }
-
-    /**
-     * 定时将流量使用情况更新到数据库
-     */
-//    @XxlJob("updateNetUsed")
-//    public void updateNetUsed() {
-//        // 查询正在运行的小鸡列表
-//        List<LxcLxcVo> lxcRunningList = lxcService.getLxcList(
-//            new QueryWrapper<LxcLxc>()
-//                .eq("lxc_status", LxcStatus.RUNNING.getCode()) // 3
-//                .orderBy(true, true, "create_time")
-//        );
-//        for (LxcLxcVo lxcLxcVo : lxcRunningList) {
-//
-//        }
-//    }
 
     @XxlJob("checkAndSetNetExceed")
     public void checkAndSetNetExceed(){

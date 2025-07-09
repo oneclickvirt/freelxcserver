@@ -46,6 +46,7 @@ import com.lxc.machine.mapper.LxcLxcMapper;
 import com.lxc.machine.mapper.LxcQueueMapper;
 import com.lxc.machine.mapper.LxcSuperLxcMapper;
 import com.lxc.machine.service.*;
+import com.lxc.machine.utils.InstancesUtils;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -61,10 +62,7 @@ import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -217,7 +215,7 @@ public class LxcQueueController extends BaseController {
 //            log.info("{}已领取小鸡数量:{}", lxcSuperId, used);
 
             // 调用服务层创建容器
-            R<Object> exception = lxcQueueService.applyLxc(superLxc, loginUser, lxcApplyBo);
+            R<Object> exception = lxcQueueService.applyLxc(tgId, DateUtils.getDate(),  superLxc, loginUser, lxcApplyBo);
             if (exception != null) {
                 return exception;
             }
@@ -236,6 +234,25 @@ public class LxcQueueController extends BaseController {
         }
         return R.success("申请成功，请等待小鸡创建。若长时间未创建，请联系站长");
     }
+
+    @SaCheckPermission("lxc:lxc:all")
+    @GetMapping("/testExec")
+    @Log(title = "在小鸡里执行指令", businessType = BusinessType.OTHER)
+    public R testExec() {
+        InstancesUtils.target("8.216.37.221", LxcConstants.LXD_PORT).postInstancesByNameExec(null, "");
+        return R.ok("执行成功");
+    }
+
+    @SaCheckPermission("lxc:lxc:all")
+    @GetMapping("/testGetAllInstances")
+    @Log(title = "在小鸡里执行指令", businessType = BusinessType.OTHER)
+    public R testGetAllInstances() {
+        BackgroundOperationResponse allInstancesBase = lxcQueueService.getAllInstancesBase("8.216.37.221");
+        System.out.println("allInstancesBase:" + allInstancesBase);
+        System.out.println("metaData:" + allInstancesBase.getMetadata());
+        return R.ok("执行成功");
+    }
+
 
     @SaCheckPermission("lxc:lxc:all")
     @GetMapping("/listAll")

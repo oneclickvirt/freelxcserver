@@ -27,7 +27,6 @@
 package org.relxd.lxd;
 
 import com.google.common.collect.ImmutableList;
-import com.lxc.common.utils.StringUtils;
 import okhttp3.*;
 import org.relxd.lxd.auth.javakeystore.service.JavaKeyStoreService;
 import org.relxd.lxd.auth.javakeystore.service.JavaKeyStoreServiceImpl;
@@ -137,7 +136,10 @@ public class RelxdApiClient extends ApiClient {
         logger = LoggerFactory.getLogger(RelxdApiClient.class);
         //Initialise fields from properties file
         final String basePath = this.getApplicationProperties().getProperty("base.url");
-        if (StringUtils.isNotEmpty(basePath)) {
+//        if (StringUtils.isNotEmpty(basePath)) {
+//            super.setBasePath(basePath);
+//        }
+        if (basePath != null || !basePath.isEmpty()) {
             super.setBasePath(basePath);
         }
         fillOthers();

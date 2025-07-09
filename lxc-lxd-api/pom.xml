@@ -24,10 +24,10 @@
 
     <dependencies>
         <!-- 通用工具-->
-        <dependency>
-            <groupId>com.lxc</groupId>
-            <artifactId>lxc-common</artifactId>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>com.lxc</groupId>-->
+<!--            <artifactId>lxc-common</artifactId>-->
+<!--        </dependency>-->
 
         <dependency>
             <groupId>io.swagger</groupId>
@@ -134,15 +134,13 @@
             <artifactId>junit-jupiter-engine</artifactId>
             <version>5.8.2</version>
         </dependency>
-<!--        <dependency>-->
-<!--            <groupId>com.squareup.okhttp</groupId>-->
-<!--            <artifactId>okhttp</artifactId>-->
-<!--            <version>2.7.5</version>-->
-<!--            <scope>compile</scope>-->
-<!--        </dependency>-->
-
-
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+        </dependency>
     </dependencies>
-
-
 </project>

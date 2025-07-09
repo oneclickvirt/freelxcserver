@@ -13,6 +13,7 @@ import com.lxc.common.core.domain.dto.RoleDTO;
 import com.lxc.common.core.page.TableDataInfo;
 import com.lxc.common.enums.LxcStatus;
 import com.lxc.common.utils.BeanCopyUtils;
+import com.lxc.common.utils.DateUtils;
 import com.lxc.common.utils.StringUtils;
 import com.lxc.common.utils.redis.RedisUtils;
 import com.lxc.framework.service.BaseService;
@@ -22,6 +23,7 @@ import com.lxc.machine.domain.LxcSuperLxc;
 import com.lxc.machine.domain.SysSuperRole;
 import com.lxc.machine.domain.bo.LxcSuperLxcBo;
 import com.lxc.machine.domain.vo.LxcCartVo;
+import com.lxc.machine.domain.vo.LxcQueueVo;
 import com.lxc.machine.domain.vo.LxcSuperLxcVo;
 import com.lxc.machine.mapper.LxcSuperLxcMapper;
 import com.lxc.machine.service.*;
@@ -54,6 +56,7 @@ public class LxcSuperLxcServiceImpl extends BaseService<LxcSuperLxcMapper, LxcSu
     ILxcQueueService lxcQueueService;
     private final ISysSuperRoleService sysSuperRoleService;
     private final ISysLxcRoleService sysLxcRoleService;
+    private RedisUtils redisUtils;
 
     /**
      * 查询母鸡信息
@@ -173,7 +176,19 @@ public class LxcSuperLxcServiceImpl extends BaseService<LxcSuperLxcMapper, LxcSu
             LxcSuperLxc lxcSuperLxc = baseMapper.selectById(id);
             String superLxcIp = lxcSuperLxc.getIp();
             sysLxcRoleService.deleteBySuperIp(superLxcIp);
+            // 删除后更新缓存
+            LambdaQueryWrapper<LxcQueue> queueLqw = new LambdaQueryWrapper<>();
+            queueLqw.eq(LxcQueue::getIp, superLxcIp);
+            LxcQueue lxcQueue = lxcQueueService.getOne(queueLqw); // 目的是获取到tg_id
             lxcQueueService.delete(new QueryWrapper<LxcQueue>().eq("ip",superLxcIp));
+            // 定义缓存 key
+            String cacheKey = "lxc:queue:all:" + lxcQueue.getTgId() + ":" + DateUtils.getDate();
+            // 尝试从 Redis 中获取缓存数据
+            List<LxcQueueVo> queueList = redisUtils.getCacheObject(cacheKey);
+            if (queueList != null) {
+                // 若缓存中存在数据，删除缓存，因为宿主机已经要删除
+                redisUtils.deleteObject(cacheKey);
+            }
             lxcLxcService.delete(new QueryWrapper<LxcLxc>().eq("super_ip",superLxcIp));
             sysSuperRoleService.delete(new QueryWrapper<SysSuperRole>().eq("super_id",id));
             RedisUtils.deleteKeys(String.format(CacheNames.LXC_SUPER_APPLY_HEAD,lxcSuperLxc.getId()) + "*");

@@ -960,6 +960,7 @@ public class ApiClient {
      *                      fail to deserialize the response body
      */
     public <T> T handleResponse(Response response, Type returnType) throws ApiException {
+        System.out.println("response:\n" + response);
         if (response.isSuccessful()) {
             if (returnType == null || response.code() == 204) {
                 // returning null if the returnType is not defined,

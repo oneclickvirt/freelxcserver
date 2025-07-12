@@ -482,7 +482,7 @@ public class LxcJobService {
                     if(list == null || list.size() == 0){
                         System.out.println("没有获取到流量使用情况");
                     } else {
-                        System.out.println("该小鸡的流量使用情况为："+list);
+                        System.out.println(childName + "的流量使用情况为："+list);
                     }
 
                     // TODO 用BigDecimal重写流量累积   lxcTraffic对应的java类型就是BigDecimal

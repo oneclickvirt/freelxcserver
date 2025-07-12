@@ -5,6 +5,7 @@ import cn.dev33.satoken.annotation.SaIgnore;
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.http.HttpStatus;
 import com.baomidou.lock.LockTemplate;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.lxc.common.annotation.Log;
 import com.lxc.common.annotation.RateLimiter;
@@ -236,10 +237,27 @@ public class LxcQueueController extends BaseController {
     }
 
     @SaCheckPermission("lxc:lxc:all")
-    @GetMapping("/testExec")
+    @GetMapping("/testExec/{instancename}")
     @Log(title = "在小鸡里执行指令", businessType = BusinessType.OTHER)
-    public R testExec() {
-        InstancesUtils.target("8.216.37.221", LxcConstants.LXD_PORT).postInstancesByNameExec(null, "");
+    public R testExec(@PathVariable String instancename) {
+//        InstancesUtils.target("8.216.37.221", LxcConstants.LXD_PORT).postInstancesByNameExec(instancename,  "touch", "/root/testfile.txt");
+        InstancesUtils.target("8.216.37.221", LxcConstants.LXD_PORT).postInstancesByNameExec(instancename,  "chmod", "777", "/root/ssh_bash.sh");
+        InstancesUtils.target("8.216.37.221", LxcConstants.LXD_PORT).postInstancesByNameExec(instancename,  "dos2unix", "/root/ssh_bash.sh");
+        LambdaQueryWrapper<LxcLxc> lambdaQueryWrapper = new LambdaQueryWrapper<>();
+        lambdaQueryWrapper.eq(LxcLxc::getChildName, instancename);
+        LxcLxc lxc = lxcLxcService.getOne(lambdaQueryWrapper);
+        InstancesUtils.target("8.216.37.221", LxcConstants.LXD_PORT).postInstancesByNameExec(instancename,  "bash", "/root/ssh_bash.sh", lxc.getPassword());
+        InstancesUtils.target("8.216.37.221", LxcConstants.LXD_PORT).postInstancesByNameExec(instancename,  "chmod", "+x", "/root/config.sh");
+        InstancesUtils.target("8.216.37.221", LxcConstants.LXD_PORT).postInstancesByNameExec(instancename,  "dos2unix", "/root/config.sh");
+        InstancesUtils.target("8.216.37.221", LxcConstants.LXD_PORT).postInstancesByNameExec(instancename,  "/root/config.sh");
+        return R.ok("执行成功");
+    }
+
+    @SaCheckPermission("lxc:lxc:all")
+    @GetMapping("/testInstanceLog/{instancename}")
+    @Log(title = "获取小鸡执行日志", businessType = BusinessType.OTHER)
+    public R testInstanceLog(@PathVariable String instancename) {
+        InstancesUtils.target("8.216.37.221", LxcConstants.LXD_PORT).getInstancesByNameConsoleWithHttpInfo(instancename);
         return R.ok("执行成功");
     }
 

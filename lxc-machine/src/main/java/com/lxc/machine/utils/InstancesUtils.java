@@ -17,6 +17,7 @@ import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.relxd.lxd.ApiException;
+import org.relxd.lxd.ApiResponse;
 import org.relxd.lxd.RelxdApiClient;
 import org.relxd.lxd.api.InstancesApi;
 import org.relxd.lxd.builders.InstanceConfigBuilder;
@@ -277,27 +278,24 @@ public CompletableFuture<Void> postInstancesAsync(LxcLxc lxc, LxcSuperLxc superL
     }
 
     /**
-     * 默认execRequest配置在容器内执行命令
+     * 默认execRequest配置在容器内执行命令，只设置必要参数
      * @param containerName
      * @param command
      */
     public String postInstancesByNameExec(String containerName, String... command) {
-        // Create the request object (CreateInstancesByNameExecRequest)
+        // Create the request object (CreateInstancesByNameExecRequest)，只设置必要参数
         CreateInstancesByNameExecRequest execRequest = new CreateInstancesByNameExecRequest();
         // 执行命令
         execRequest.setCommand(Arrays.asList(command));
         execRequest.setSignal(10);
-        execRequest.setCwd("/root/");
         execRequest.setInteractive(false);
-        execRequest.setWidth(80);
-        execRequest.setHeight(25);
         execRequest.setUser(0); // 1000表示普通用户，0表示root用户
         execRequest.setGroup(0);
-        execRequest.setWaitForWebsocket(true);
+        execRequest.setWaitForWebsocket(false);
         System.out.println("execRequest:" + execRequest);
         try {
             BackgroundOperationResponse response = this.instancesApi.postInstancesByNameExec(containerName, execRequest);
-            System.out.println("response:" + response);
+//            System.out.println("response:" + response);
             if (response.getStatusCode() == 200 || response.getStatusCode() == 100) {
                 log.info("容器[{}]命令执行成功，响应: {}", containerName, response);
                 return response.toString();
@@ -346,10 +344,10 @@ public CompletableFuture<Void> postInstancesAsync(LxcLxc lxc, LxcSuperLxc superL
         if (execRequestMap.containsKey("waitForWebsocket")) {
             execRequest.setWaitForWebsocket((Boolean) execRequestMap.get("waitForWebsocket"));
         }
-        /* 这个参数目前貌似不支持了，加上的话会使得lxc exec失败
-       if (execRequestMap.containsKey("recordOutput")) {
+//         这个参数目前貌似不支持了，加上的话会使得lxc exec失败
+        if (execRequestMap.containsKey("recordOutput")) {
             Boolean recordOutput = (Boolean) execRequestMap.get("recordOutput");
-        }*/
+        }
         if (execRequestMap.containsKey("interactive")) {
             execRequest.setInteractive((Boolean) execRequestMap.get("interactive"));
         }
@@ -382,18 +380,17 @@ public CompletableFuture<Void> postInstancesAsync(LxcLxc lxc, LxcSuperLxc superL
         LambdaQueryWrapper<LxcSuperLxc> lqw = new LambdaQueryWrapper<>();
         lqw.eq(LxcSuperLxc::getIp, sshDto.getIp());
         LxcSuperLxc superLxc = lxcSuperLxcService.getOne(lqw);
-        Long index = Long.parseLong(sshDto.getChildName().split(superLxc.getPrefix())[1]);
+//        Long index = Long.parseLong(sshDto.getChildName().split(superLxc.getPrefix())[1]);
         String childName = sshDto.getChildName();
         Long downLimit = sshDto.getDownLimit();
         Long upLimit = sshDto.getUpLimit();
-        Long sshPort = sshDto.getChildSshPort() + index; // 宿主机创建容器起始端口+容器序号=容器SSH端口
+        Long sshPort = sshDto.getChildSshPort(); // 宿主机创建容器起始端口+容器序号=容器SSH端口
+        log.info("creating children sshPort:{}", sshPort);
         String ipv6Flag = sshDto.getIpv6Flag();
         Integer portStart = sshDto.getPortStart();
         Integer portEnd = sshDto.getPortEnd();
-
-        // 每段命令如果有返回，将返回信息记录到日志文件中childName_init.log和返回到控制台
-
         try {
+            // 每段命令如果有返回，将返回信息记录到日志文件中childName_init.log和返回到控制台
             StringBuilder resLog = new StringBuilder();
             // 1. 切换到/root目录（Java环境默认工作目录通常是项目根目录，这里不需要切换）
 
@@ -409,7 +406,7 @@ public CompletableFuture<Void> postInstancesAsync(LxcLxc lxc, LxcSuperLxc superL
             addLog("启动容器", resLog, res2);
 
             // 5. 等待容器启动
-            Thread.sleep(1000);
+            Thread.sleep(3000);
 
             // 6. 检查DNS（通过LXD API执行）
             List<String> res3 = ShellUtils.execCmdOutList("/usr/local/bin/check-dns.sh", ShellUtils.getSession(sshDto));
@@ -434,7 +431,6 @@ public CompletableFuture<Void> postInstancesAsync(LxcLxc lxc, LxcSuperLxc superL
             if ("Y".equalsIgnoreCase(ipv6Flag)) {
                 List<String> res7 = configureIPv6(way, sshDto, childName);
                 addLog("配置IPv6（如果启用）", resLog, res7);
-
             }
 
             // 12. 配置端口区间映射
@@ -455,11 +451,17 @@ public CompletableFuture<Void> postInstancesAsync(LxcLxc lxc, LxcSuperLxc superL
             addLog("清理本地脚本（如果存在）", resLog, res11);
 
             // 15. 特殊处理Alpine系统
-            if (system.toLowerCase().contains("alpine")) {
-                Thread.sleep(3000);
-                List<String> res12 = restartContainer(way, sshDto, childName);
-                addLog("特殊处理Alpine系统", resLog, res12);
-            }
+//            if (system.toLowerCase().contains("alpine")) {
+//                Thread.sleep(3000);
+//                List<String> res12 = restartContainer(way, sshDto, childName);
+//                addLog("特殊处理Alpine系统", resLog, res12);
+//            }
+            List<String> res12 = restartContainer(way, sshDto, childName);
+            addLog("重启容器等待脚本", resLog, res12);
+            // 强制暂停一段时间，等待容器内脚本准备完毕
+            Thread.sleep(30000);
+            List<String> res13 = configAndSSH(way, sshDto, childName, system, password);
+            addLog("执行ssh和config脚本", resLog, res13);
             saveLogToFile(sshDto, childName, resLog.toString());
             // 16. 输出结果
             String output = portStart != 0 && portEnd != 0
@@ -480,15 +482,15 @@ public CompletableFuture<Void> postInstancesAsync(LxcLxc lxc, LxcSuperLxc superL
         String cmdPrefix = "incus".equals(way) ? "incus" : "lxc";
         String command = StrUtil.format(cmdPrefix + " config set {} {} {}", containerName, key, value);
         List<String> res = ShellUtils.execCmdOutList(command, ShellUtils.getSession(sshDto));
-        log.info("设置容器配置返回结果：{}", res);
         log.info("设置容器配置: {}", command);
+        log.info("设置容器配置返回结果：{}", res);
         return res;
     }
 
-    // 2. 生成随机密码
+    // 2. 生成随机密码，替换掉-
     private String generateRandomPassword() {
         String ori = UUID.randomUUID().toString();
-        return ori.substring(2, 11);
+        return ori.substring(2, 11).replace("-", "0");
     }
 
     // 3. 启动容器
@@ -496,7 +498,7 @@ public CompletableFuture<Void> postInstancesAsync(LxcLxc lxc, LxcSuperLxc superL
         String cmdPrefix = "incus".equals(way) ? "incus" : "lxc";
         String command = StrUtil.format(cmdPrefix + " start {}", containerName);
         List<String> res = ShellUtils.execCmdOutList(command, ShellUtils.getSession(sshDto));
-        log.info("启动容器返回结果：{}", res);
+//        log.info("启动容器返回结果：{}", res);
         log.info("启动容器: {}", command);
         return res;
     }
@@ -512,7 +514,8 @@ public CompletableFuture<Void> postInstancesAsync(LxcLxc lxc, LxcSuperLxc superL
 
     // 5. 检测系统类型
     private String detectContainerSystem(ShellDto sshDto, String containerName) throws Exception {
-        String result = postInstancesByNameExec(containerName, "bash", "-c", "cat /etc/os-release");
+        String result = postInstancesByNameExec(containerName, "cat /etc/os-release");
+        log.info("检测系统类型返回结果：{}", result);
         if (result.toLowerCase().contains("centos") ||
             result.toLowerCase().contains("almalinux") ||
             result.toLowerCase().contains("fedora") ||
@@ -532,20 +535,20 @@ public CompletableFuture<Void> postInstancesAsync(LxcLxc lxc, LxcSuperLxc superL
         List<String> res = new ArrayList<>();
         switch (system.toLowerCase()) {
             case "centos":
-                res.add(postInstancesByNameExec(containerName, "bash", "-c", "sudo yum update -y"));
-                res.add(postInstancesByNameExec(containerName, "bash", "-c", "sudo yum install -y curl dos2unix"));
+                res.add("sudo yum update -y\n" + postInstancesByNameExec(containerName, "sudo", "yum", "update ", "-y"));
+                res.add("sudo yum install -y curl dos2unix\n" + postInstancesByNameExec(containerName, "sudo yum install", "-y", "curl dos2unix"));
                 break;
             case "alpine":
-                res.add(postInstancesByNameExec(containerName, "bash", "-c", "apk update"));
-                res.add(postInstancesByNameExec(containerName, "bash", "-c", "apk add --no-cache curl"));
+                res.add("apk update\n" + postInstancesByNameExec(containerName, "apk", "update"));
+                res.add("apk add --no-cache curl\n" + postInstancesByNameExec(containerName, "apk add", "--no-cache curl"));
                 break;
             case "openwrt":
-                res.add(postInstancesByNameExec(containerName, "bash", "-c", "opkg update"));
+                res.add("opkg update\n" + postInstancesByNameExec(containerName, "opkg update"));
                 break;
             default:
-                res.add(postInstancesByNameExec(containerName, "bash", "-c", "sudo apt-get update -y"));
-                res.add(postInstancesByNameExec(containerName, "bash", "-c", "sudo apt-get install curl -y --fix-missing"));
-                res.add(postInstancesByNameExec(containerName, "bash", "-c", "sudo apt-get install dos2unix -y --fix-missing"));
+                res.add("sudo apt-get update -y\n" + postInstancesByNameExec(containerName, "sudo", "apt-get", "update", "-y"));
+                res.add("sudo apt-get install curl -y --fix-missing\n" + postInstancesByNameExec(containerName, "sudo apt-get install curl", "-y", "--fix-missing"));
+                res.add("sudo apt-get install dos2unix -y --fix-missing\n" + postInstancesByNameExec(containerName, "sudo apt-get install dos2unix", "-y", "--fix-missing"));
         }
         return res;
     }
@@ -554,6 +557,8 @@ public CompletableFuture<Void> postInstancesAsync(LxcLxc lxc, LxcSuperLxc superL
     private List<String> configureSSH(String way, ShellDto sshDto, String containerName, String system, String password) throws Exception {
         List<String> res = new ArrayList<>();
         List<String> res1 = new ArrayList<>();
+        // todo 用 && 连接多条需要串行执行的命令
+        postInstancesByNameExec(containerName, "touch", "/root/file.txt");
         if (system.toLowerCase().contains("alpine") || system.toLowerCase().contains("openwrt")) {
             // 下载并执行ssh_sh.sh
             if ("incus".equals(way)) {
@@ -568,9 +573,7 @@ public CompletableFuture<Void> postInstancesAsync(LxcLxc lxc, LxcSuperLxc superL
             for (String s : res1) {
                 res.add(s);
             }
-
-            res.add(postInstancesByNameExec(containerName, "bash", "-c", "chmod 777 /root/ssh_sh.sh"));
-            res.add(postInstancesByNameExec(containerName, "bash", "/root/ssh_sh.sh", password));
+            res.add("chmod 777 /root/ssh_sh.sh\n" + postInstancesByNameExec(containerName, "chmod", "777", "/root/ssh_sh.sh"));
         } else {
             // 下载并执行ssh_bash.sh
             if ("incus".equals(way)) {
@@ -585,11 +588,6 @@ public CompletableFuture<Void> postInstancesAsync(LxcLxc lxc, LxcSuperLxc superL
             for (String s : res1) {
                 res.add(s);
             }
-
-            res.add(postInstancesByNameExec(containerName, "bash", "-c", "chmod 777 /root/ssh_bash.sh"));
-            res.add(postInstancesByNameExec(containerName, "bash", "-c", "dos2unix /root/ssh_bash.sh"));
-            res.add(postInstancesByNameExec(containerName, "bash", "/root/ssh_bash.sh", password));
-
             List<String> res2 = new ArrayList<>();
             // 下载并执行config.sh
             if ("incus".equals(way)) {
@@ -604,12 +602,6 @@ public CompletableFuture<Void> postInstancesAsync(LxcLxc lxc, LxcSuperLxc superL
             for (String s : res2) {
                 res.add(s);
             }
-            res.add(postInstancesByNameExec(containerName, "bash", "-c", "chmod +x /root/config.sh"));
-            res.add(postInstancesByNameExec(containerName, "bash", "-c", "dos2unix /root/config.sh"));
-            res.add(postInstancesByNameExec(containerName, "bash", "/root/config.sh"));
-
-            // 清空历史命令
-            res.add(postInstancesByNameExec(containerName, "bash", "-c", "history -c"));
         }
         return res;
     }
@@ -628,6 +620,7 @@ public CompletableFuture<Void> postInstancesAsync(LxcLxc lxc, LxcSuperLxc superL
 
         // 将文件上传到容器
         String uploadCmd = StrUtil.format(cmdPrefix + " file push {} {}{}", localPath, containerName, destination);
+//        sleep(10000);
         List<String> res2 = ShellUtils.execCmdOutList(uploadCmd, ShellUtils.getSession(sshDto));
         for (String s : res2) {
             res.add(s);
@@ -647,7 +640,7 @@ public CompletableFuture<Void> postInstancesAsync(LxcLxc lxc, LxcSuperLxc superL
         String command = StrUtil.format(cmdPrefix + " config device add {} {} proxy listen={}:0.0.0.0:{} connect={}:127.0.0.1:{}",
             containerName, deviceName, protocol, hostPort, protocol, containerPort);
         List<String> res = ShellUtils.execCmdOutList(command, ShellUtils.getSession(sshDto));
-        log.info("添加端口转发: {}", command);
+        log.info("添加端口转发: {}，执行结果：{}", command, res);
         return res;
     }
 
@@ -657,7 +650,7 @@ public CompletableFuture<Void> postInstancesAsync(LxcLxc lxc, LxcSuperLxc superL
         String command = StrUtil.format(cmdPrefix + " config device add {} {} proxy listen={}:0.0.0.0:{}-{} connect={}:127.0.0.1:{}-{}",
             containerName, deviceName, protocol, startPort, endPort, protocol, startPort, endPort);
         List<String> res = ShellUtils.execCmdOutList(command, ShellUtils.getSession(sshDto));
-        log.info("添加端口区间映射: {}", command);
+        log.info("添加端口区间映射: {}，执行结果：{}", command, res);
         return res;
     }
 
@@ -750,5 +743,36 @@ public CompletableFuture<Void> postInstancesAsync(LxcLxc lxc, LxcSuperLxc superL
     private void saveLogToFile(ShellDto sshDto, String containerName, String content) throws Exception {
         String command = StrUtil.format("echo '{}' > {}", content, containerName+"_init.log");
         ShellUtils.execCmdOutList(command, ShellUtils.getSession(sshDto));
+    }
+
+    public void getInstancesByNameConsoleWithHttpInfo(String instanceName) {
+        try {
+            ApiResponse<BackgroundOperationResponse> response = instancesApi.getInstancesByNameConsoleWithHttpInfo(instanceName, 0, null);
+            if (response.getStatusCode() == 200) {
+                log.info("容器[{}]命令执行成功，响应: {}", instanceName, response.getData());
+            }
+        } catch (ApiException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public List<String> configAndSSH(String way, ShellDto sshDto, String containerName, String system, String password) {
+        List<String> res = new ArrayList<>();
+        List<String> res1 = new ArrayList<>();
+        if (system.toLowerCase().contains("alpine") || system.toLowerCase().contains("openwrt")) {
+            res.add("chmod 777 /root/ssh_sh.sh\n" + postInstancesByNameExec(containerName, "chmod", "777", "/root/ssh_sh.sh"));
+        } else {
+            res.add("chmod 777 /root/ssh_bash.sh\n" + postInstancesByNameExec(containerName,  "chmod", "777", "/root/ssh_bash.sh"));
+            res.add("dos2unix /root/ssh_bash.sh\n" + postInstancesByNameExec(containerName,  "dos2unix", "/root/ssh_bash.sh"));
+
+            res.add("bash /root/ssh_bash.sh\n" + postInstancesByNameExec(containerName,  "bash", "/root/ssh_bash.sh", password));
+            res.add("chmod +x /root/config.sh\n" + postInstancesByNameExec(containerName,  "chmod", "+x", "/root/config.sh"));
+            res.add("dos2unix /root/config.sh\n" + postInstancesByNameExec(containerName,  "dos2unix", "/root/config.sh"));
+            res.add("/root/config.sh\n" + postInstancesByNameExec(containerName,  "/root/config.sh"));
+
+            // 清空历史命令
+            res.add("history -c\n" + postInstancesByNameExec(containerName, "history -c"));
+        }
+        return res;
     }
 }

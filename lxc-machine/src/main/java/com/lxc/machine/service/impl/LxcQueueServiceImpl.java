@@ -348,7 +348,7 @@ public class LxcQueueServiceImpl extends BaseService<LxcQueueMapper, LxcQueue> i
      * 事务回滚无法回滚已执行的异步请求，还是要手动确认回滚
      */
 //    @Transactional(rollbackFor = Exception.class)
-    public R<Object> applyLxc(String tgId, String date, LxcSuperLxc superLxc, LoginUser loginUser, LxcApplyBo lxcApplyBo) {
+    public R<Object> applyLxc(String tgId, String date, LxcSuperLxc superLxc, LoginUser loginUser, LxcApplyBo lxcApplyBo, Boolean isReset) {
         LxcLxc lxc = new LxcLxc();
         String superLxcIp = superLxc.getIp();
         // redis缓存操作
@@ -367,7 +367,7 @@ public class LxcQueueServiceImpl extends BaseService<LxcQueueMapper, LxcQueue> i
         //
         List<Integer> usedContainerNums = checkDuplicateChick(superLxc, superLxcIp);
         // 找出没有连续的数字，比如1,2,5,6返回3 ，1,2,3,4返回5
-        int portIndex = findFirstDiscontinuous(usedContainerNums);
+        int portIndex = isReset ? (Integer.parseInt(lxcApplyBo.getSshPort()) - 20000) : findFirstDiscontinuous(usedContainerNums);
 
         LxcUser tgUser = loginUser.getLxcUser();
         tgUser.setSurplusQuota(tgUser.getSurplusQuota() - 1);
@@ -385,13 +385,11 @@ public class LxcQueueServiceImpl extends BaseService<LxcQueueMapper, LxcQueue> i
             .setPortStart(netStartPort + "")
             .setPortEnd(netStartPort + (superLxc.getNetStep() - 1) + "")
             .setState(1) // 1-占用，0-空闲
-            .setLxcStatus(LxcStatus.WAITING_FOR_PROCESS.getCode());
+            .setLxcStatus(isReset ? LxcStatus.RESETING.getCode() : LxcStatus.WAITING_FOR_PROCESS.getCode());
         try {
-
             String lxcPort = LxcConstants.LXD_PORT;
             // 调用REST API执行lxd命令创建实例，重构成incus时改成okHttp来请求API
             InstancesUtils.target(superLxcIp,lxcPort).postInstances(lxc, superLxc, lxcApplyBo);
-
             // 定义缓存 key
             String cacheKey = "lxc:queue:all:" + tgId + ":" + date;
             // 尝试从 Redis 中获取缓存数据
@@ -400,7 +398,6 @@ public class LxcQueueServiceImpl extends BaseService<LxcQueueMapper, LxcQueue> i
                 // 若缓存中存在数据，更新缓存
                 redisUtils.setCacheObject(cacheKey, queueMapper.queryAllLxc(tgId, date), Duration.ofMinutes(Constants.DEFAULT_SAVE_MINUTE));
             }
-
             // 申请小鸡成功，清理缓存（保持数据一致性）
             RedisUtils.deleteKeys(CacheNames.FREE_LXC_LIST + "*");
             RedisUtils.deleteKeys(CacheNames.STATISTICS_LXC_LIST);
@@ -411,6 +408,13 @@ public class LxcQueueServiceImpl extends BaseService<LxcQueueMapper, LxcQueue> i
             RedisUtils.incrAtomicValue(keyOfFree);
             RedisUtils.decrAtomicValue(keyOfUsed);
             throw new RuntimeException(e);
+        }
+        // 此时小鸡已经创建完毕，如果是重建的话，会插入一个新的跟原来同名的小鸡，需要添加一个判断，是否存在旧小鸡，若存在就先删掉
+        List<LxcLxcVo> lxcSameChildNameList = lxcService.getLxcList(new QueryWrapper<LxcLxc>().eq("child_name", lxc.getChildName()));
+        for (LxcLxcVo lxcSameChildName : lxcSameChildNameList) {
+            lxcService.delete(new LambdaQueryWrapper<LxcLxc>().eq(LxcLxc::getId, lxcSameChildName.getId()));
+            //删除队列
+            baseMapper.delete(new LambdaQueryWrapper<LxcQueue>().eq(LxcQueue::getLxcId, lxcSameChildName.getId()));
         }
         lxcMapper.insert(lxc);
         LxcQueue queue = new LxcQueue();
@@ -490,6 +494,7 @@ public class LxcQueueServiceImpl extends BaseService<LxcQueueMapper, LxcQueue> i
                             .childName(superLxc.getPrefix() + continusNum)
                             .build()
                     );
+                    log.info(stopContainer);
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
@@ -503,6 +508,7 @@ public class LxcQueueServiceImpl extends BaseService<LxcQueueMapper, LxcQueue> i
                             .childName(superLxc.getPrefix() + continusNum)
                             .build()
                     );
+                    log.info(delContainer);
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
@@ -533,6 +539,7 @@ public class LxcQueueServiceImpl extends BaseService<LxcQueueMapper, LxcQueue> i
             .childName(lxc.getChildName())
             .memoryLimit(lxcSuperLxcVo.getMemoryLimit())
             .diskLimit(lxcSuperLxcVo.getDiskLimit())
+            .trafficLimit(lxcSuperLxcVo.getTrafficTotalLimit())
             .childSshPort(Long.valueOf(lxc.getSshPort()))
             .portStart(Integer.valueOf(lxc.getPortStart()))
             .portEnd(Integer.valueOf(lxc.getPortEnd()))

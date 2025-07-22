@@ -15,7 +15,6 @@ import com.lxc.common.core.domain.PageQuery;
 import com.lxc.common.core.domain.dto.RoleDTO;
 import com.lxc.common.core.page.TableDataInfo;
 import com.lxc.common.utils.DateUtils;
-import com.lxc.common.utils.ShellUtils;
 import com.lxc.common.utils.StringUtils;
 import com.lxc.common.utils.redis.RedisUtils;
 import com.lxc.framework.service.BaseService;
@@ -29,6 +28,7 @@ import com.lxc.machine.mapper.LxcLxcMapper;
 import com.lxc.machine.mapper.LxcQueueMapper;
 import com.lxc.machine.mapper.SysLxcRoleMapper;
 import com.lxc.machine.service.ILxcLxcService;
+import com.lxc.machine.utils.HostUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -276,15 +276,7 @@ public class LxcLxcServiceImpl extends BaseService<LxcLxcMapper, LxcLxc> impleme
                     operWay = " incus";
                 }
 
-                // 停机
-                ShellUtils.execCmdOutList(String.format(operWay + " stop %1$s", lxcLxc.getChildName())
-                    , "root", lxcSuperLxc.getPassword(), lxcSuperLxc.getIp(), 22);
-                // 删容器
-                ShellUtils.execCmdOutList(String.format(operWay + " delete %1$s", lxcLxc.getChildName())
-                    , "root", lxcSuperLxc.getPassword(), lxcSuperLxc.getIp(), 22);
-                // 移除初始化日志文件
-                ShellUtils.execCmdOutList(String.format("rm -rf %1$s %1$s_init.log", lxcLxc.getChildName())
-                    , "root", lxcSuperLxc.getPassword(), lxcSuperLxc.getIp(), 22);
+                HostUtils.deleteContainer(lxcLxc, lxcSuperLxc, operWay);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -294,10 +286,10 @@ public class LxcLxcServiceImpl extends BaseService<LxcLxcMapper, LxcLxc> impleme
         superMap.forEach((k, v) -> {
             lxcSuperLxcService.setFreshCache(v);
         });
-
-
         return i > 0;
     }
+
+
 
     /**
      * 重建时中途删除小鸡，不删缓存信息
@@ -333,14 +325,7 @@ public class LxcLxcServiceImpl extends BaseService<LxcLxcMapper, LxcLxc> impleme
                 }
 //                ShellUtils.execCmdOutList(String.format("lxc stop %1$s && lxc delete %1$s", lxcLxc.getChildName())
 //                    , "root", lxcSuperLxc.getPassword(), lxcSuperLxc.getIp(), 22);
-                ShellUtils.execCmdOutList(String.format(operWay + " stop %1$s", lxcLxc.getChildName())
-                    , "root", lxcSuperLxc.getPassword(), lxcSuperLxc.getIp(), 22);
-                // 删容器
-                ShellUtils.execCmdOutList(String.format(operWay + " delete %1$s", lxcLxc.getChildName())
-                    , "root", lxcSuperLxc.getPassword(), lxcSuperLxc.getIp(), 22);
-
-                ShellUtils.execCmdOutList(String.format("rm -rf %1$s %1$s_init.log", lxcLxc.getChildName())
-                    , "root", lxcSuperLxc.getPassword(), lxcSuperLxc.getIp(), 22);
+                HostUtils.deleteContainer(lxcLxc, lxcSuperLxc, operWay);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }

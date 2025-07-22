@@ -28,6 +28,11 @@ public class LxcLxcBo extends BaseEntity {
     private Long id;
 
     /**
+     * 母鸡id
+     */
+    private Long lxcSuperId;
+
+    /**
      * 小鸡名称
      */
     @NotBlank(message = "小鸡名称不能为空", groups = { AddGroup.class, EditGroup.class })

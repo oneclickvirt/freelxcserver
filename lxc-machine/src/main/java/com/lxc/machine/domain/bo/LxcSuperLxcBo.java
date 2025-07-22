@@ -92,13 +92,19 @@ public class LxcSuperLxcBo extends BaseEntity {
      * 内存限制，默认256MB
      */
     @NotNull(message = "内存限制不能为空", groups = {AddGroup.class,EditGroup.class})
-    private Long memoryLimit;
+    private String memoryLimit;
 
     /**
      * 硬盘限制，默认1G
      */
     @NotNull(message = "硬盘限制不能为空", groups = {AddGroup.class,EditGroup.class})
-    private Long diskLimit;
+    private String diskLimit;
+
+    /**
+     * 该宿主机下每台容器每月使用流量总量限制
+     */
+    @NotNull(message = "该宿主机下每台容器每月使用流量总量限制", groups = {AddGroup.class,EditGroup.class})
+    private String trafficTotalLimit;
 
     /**
      * 最大可开小鸡数量

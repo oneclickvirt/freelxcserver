@@ -93,13 +93,19 @@ public class LxcSuperLxcVo implements Serializable {
      * 内存限制，默认256m
      */
     @ExcelProperty(value = "内存限制，默认256MB")
-    private Long memoryLimit;
+    private String memoryLimit;
 
     /**
      * 硬盘限制，默认1G
      */
     @ExcelProperty(value = "硬盘限制，默认1G")
-    private Long diskLimit;
+    private String diskLimit;
+
+    /**
+     * 该宿主机下每台容器每月使用流量总量限制
+     */
+    @ExcelProperty(value = "该宿主机下每台容器每月使用流量总量限制")
+    private String trafficTotalLimit;
 
     /**
      * 最大可开小鸡数量

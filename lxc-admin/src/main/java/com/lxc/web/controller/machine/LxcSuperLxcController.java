@@ -341,6 +341,14 @@ public class LxcSuperLxcController extends BaseController {
     @RepeatSubmit()
     @PostMapping()
     public R<Void> add(@Validated(AddGroup.class) @RequestBody LxcSuperLxcBo bo) {
+        String trafficLimit = bo.getTrafficTotalLimit();
+        // 校验trafficLimit格式
+        String pattern = "^(\\d+)([KMGT]?B)$";
+        Pattern r = Pattern.compile(pattern);
+        Matcher m = r.matcher(trafficLimit);
+        if (!m.find()) {
+            return R.fail("流量限制格式错误，正确格式为：100MB");
+        }
         List<Long> roleIds = bo.getRoleIds();
         // list 转数组
         Long[] roleIdsArr = roleIds.toArray(new Long[0]);
@@ -359,6 +367,14 @@ public class LxcSuperLxcController extends BaseController {
     @RepeatSubmit()
     @PutMapping()
     public R<Void> edit(@Validated(EditGroup.class) @RequestBody LxcSuperLxcBo bo) {
+        String trafficLimit = bo.getTrafficTotalLimit();
+        // 校验trafficLimit格式
+        String pattern = "^(\\d+)([KMGT]?B)$";
+        Pattern r = Pattern.compile(pattern);
+        Matcher m = r.matcher(trafficLimit);
+        if (!m.find()) {
+            return R.fail("流量限制格式错误，正确格式为：100MB");
+        }
         Boolean aBoolean = lxcSuperLxcService.updateByBo(bo);
         return toAjax(aBoolean ? 1 : 0);
     }

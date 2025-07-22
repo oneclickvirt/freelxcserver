@@ -1,6 +1,8 @@
 package com.lxc.machine.utils;
 
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONObject;
+import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.lxc.common.core.domain.dto.ShellDto;
 import com.lxc.common.enums.LxcStatus;
@@ -8,6 +10,7 @@ import com.lxc.common.utils.JsonUtils;
 import com.lxc.common.utils.ShellUtils;
 import com.lxc.common.utils.StringUtils;
 import com.lxc.common.utils.spring.SpringUtils;
+import com.lxc.machine.domain.LxcContainerState;
 import com.lxc.machine.domain.LxcLxc;
 import com.lxc.machine.domain.LxcSuperLxc;
 import com.lxc.machine.domain.bo.LxcApplyBo;
@@ -16,6 +19,7 @@ import com.lxc.machine.service.impl.LxcSuperLxcServiceImpl;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jetbrains.annotations.NotNull;
 import org.relxd.lxd.ApiException;
 import org.relxd.lxd.ApiResponse;
 import org.relxd.lxd.RelxdApiClient;
@@ -57,7 +61,6 @@ public class InstancesUtils {
      * @param lxcApplyBo
      * @throws Exception
      */
-    // 在这呢
     public void postInstances(LxcLxc lxc, LxcSuperLxc superLxc, LxcApplyBo lxcApplyBo) throws Exception {
         String target = null;
         final String architecture = "x86_64";
@@ -557,8 +560,6 @@ public CompletableFuture<Void> postInstancesAsync(LxcLxc lxc, LxcSuperLxc superL
     private List<String> configureSSH(String way, ShellDto sshDto, String containerName, String system, String password) throws Exception {
         List<String> res = new ArrayList<>();
         List<String> res1 = new ArrayList<>();
-        // todo 用 && 连接多条需要串行执行的命令
-        postInstancesByNameExec(containerName, "touch", "/root/file.txt");
         if (system.toLowerCase().contains("alpine") || system.toLowerCase().contains("openwrt")) {
             // 下载并执行ssh_sh.sh
             if ("incus".equals(way)) {
@@ -774,5 +775,49 @@ public CompletableFuture<Void> postInstancesAsync(LxcLxc lxc, LxcSuperLxc superL
             res.add("history -c\n" + postInstancesByNameExec(containerName, "history -c"));
         }
         return res;
+    }
+
+    public LxcContainerState getInstancesByNameState(String instancename) {
+        try {
+            BackgroundOperationResponse response = instancesApi.getInstancesByNameState(instancename, null, null);
+            log.info("容器[{}]状态: {}\n", instancename, response);
+            LxcContainerState lxcContainerState = getLxcContainerState(instancename, response);
+            return lxcContainerState;
+        } catch (ApiException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @NotNull
+    private static LxcContainerState getLxcContainerState(String instancename, BackgroundOperationResponse response) {
+        Object metadata = response.getMetadata();
+        JSONObject entries = JSONUtil.parseObj(metadata);
+        LxcContainerState lxcContainerState = new LxcContainerState();
+        lxcContainerState.setTimestamp(System.currentTimeMillis() * 1000); // 记录时间戳，单位(ns)；统一采用获取到数据后的建立对象后的该事件点
+        lxcContainerState.setInstancename(instancename);
+        for (Map.Entry<String, Object> entry : entries) {
+            System.out.println("\"" + entry.getKey() + "\":" + entry.getValue());
+            if (entry.getKey().equals("cpu")) {
+                JSONObject cpuJson = JSONUtil.parseObj(entry.getValue().toString());
+                lxcContainerState.setCpu(Double.parseDouble(cpuJson.get("usage").toString()));
+            }
+            if (entry.getKey().equals("memory")) {
+                JSONObject memoryJson = JSONUtil.parseObj(entry.getValue().toString());
+                lxcContainerState.setMemory(Double.parseDouble(memoryJson.get("usage").toString()));
+            }
+            if (entry.getKey().equals("disk")) {
+                JSONObject diskJson = JSONUtil.parseObj(entry.getValue().toString());
+                JSONObject rootJson = JSONUtil.parseObj(diskJson.get("root").toString());
+                lxcContainerState.setDisk(Double.parseDouble(rootJson.get("usage").toString()));
+            }
+            if (entry.getKey().equals("network")) {
+                JSONObject networkJson = JSONUtil.parseObj(entry.getValue().toString());
+                String eth0 = networkJson.get("eth0").toString();
+                String counters = JSONUtil.parseObj(eth0).get("counters").toString();
+                lxcContainerState.setRecv(Double.parseDouble(JSONUtil.parseObj(counters).get("bytes_received").toString()));
+                lxcContainerState.setSend(Double.parseDouble(JSONUtil.parseObj(counters).get("bytes_sent").toString()));
+            }
+        }
+        return lxcContainerState;
     }
 }

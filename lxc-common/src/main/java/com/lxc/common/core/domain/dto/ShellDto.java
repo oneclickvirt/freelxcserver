@@ -27,11 +27,15 @@ public class ShellDto {
     /**
      * 内存限制，默认256MB
      */
-    private Long memoryLimit;
+    private String memoryLimit;
     /**
      * 硬盘限制，默认1G
      */
-    private Long diskLimit;
+    private String diskLimit;
+    /**
+     * 流量限制，默认100G
+     */
+    private String trafficLimit;
     /**
      * 外网开始端口
      */

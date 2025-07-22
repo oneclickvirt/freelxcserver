@@ -50,6 +50,11 @@ public class LxcLxcVo {
     private String superIp;
 
     /**
+     * 容器所用镜像
+     */
+    private String mirrorImage;
+
+    /**
      * 子级标签
      */
     @ExcelProperty(value = "子级标签")

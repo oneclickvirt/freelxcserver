@@ -9,7 +9,10 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public enum LxcStatus {
-
+    /**
+     * 重建中
+     */
+    RESETING("0"),
     /**
      * 未创建
      */
@@ -47,11 +50,7 @@ public enum LxcStatus {
     /**
      * 已冻结
      */
-    FROZEN("9"),
-    /**
-     * 重建中
-     */
-    RESETING("0");
+    FROZEN("9");
 
     private final String code;
 }

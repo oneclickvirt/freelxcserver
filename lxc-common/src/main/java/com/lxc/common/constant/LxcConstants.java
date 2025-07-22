@@ -20,6 +20,11 @@ public interface LxcConstants {
     Integer LXC_NETSTREAM_LIMIT = 100;
 
     /**
+     * 小鸡采样时间间隔(s)
+     */
+    Integer LXC_SAMPLE_INTERVAL = 5;
+
+    /**
      * 可开小鸡禁用标识
      */
     String LXC_SUPER_DISABLED = "0";

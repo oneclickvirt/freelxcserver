@@ -112,6 +112,9 @@ public interface CacheNames {
      * 镜像源别名
      */
     String IMAGE_ALIAS = ":super:alias";
-
+    /**
+     * cpu使用量
+     */
+    String LXC_CONTAINER_STATE = "lxc:container_state:%s";
 
 }

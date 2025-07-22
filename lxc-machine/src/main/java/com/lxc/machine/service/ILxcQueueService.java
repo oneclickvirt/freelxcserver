@@ -58,7 +58,7 @@ public interface ILxcQueueService extends IBaseService<LxcQueue> {
 
 //    R<Object> applyLxc(LxcSuperLxc superLxc, LoginUser loginUser, LxcApplyBo lxcApplyBo);
 
-    R<Object> applyLxc(String tgId, String date, LxcSuperLxc superLxc, LoginUser loginUser, LxcApplyBo lxcApplyBo);
+    R<Object> applyLxc(String tgId, String date, LxcSuperLxc superLxc, LoginUser loginUser, LxcApplyBo lxcApplyBo, Boolean isReset);
 
     /**
      * 查询用户全部小鸡

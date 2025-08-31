@@ -13,7 +13,7 @@ import com.lxc.common.enums.UserType;
 import com.lxc.common.exception.user.CaptchaException;
 import com.lxc.common.exception.user.CaptchaExpireException;
 import com.lxc.common.exception.user.UserException;
-import com.lxc.common.utils.BotUtils;
+import com.lxc.machine.utils.BotUtils;
 import com.lxc.common.utils.MessageUtils;
 import com.lxc.common.utils.ServletUtils;
 import com.lxc.common.utils.redis.RedisUtils;
@@ -60,7 +60,7 @@ public class SysRegisterService {
 //        String userType = UserType.getUserType(registerBody.getUserType()).getUserType();
 
         //账号验证
-        if (!BotUtils.isMember(LxcConstants.CHAT_ID, Long.valueOf(tgId))) {
+        if (!BotUtils.isMember(BotUtils.getChatId(LxcConstants.TG_CHANNEL_ID), Long.valueOf(tgId))) {
             throw new UserException("user.tg.error");
 //            TODO 跳过验证
 
@@ -72,7 +72,7 @@ public class SysRegisterService {
         }
 
 //        String tgUserName = BotUtils.getUserName(LxcBotConstants.CHAT_ID, Long.valueOf(tgId));
-        String tgUserName = BotUtils.getUserName(LxcConstants.CHAT_ID, Long.valueOf(tgId));
+        String tgUserName = BotUtils.getUserName(BotUtils.getChatId(LxcConstants.TG_CHANNEL_ID), Long.valueOf(tgId));
         if (tgUserName == null) throw new UserException("user.tg.noname");
 
         LxcUser user = new LxcUser();

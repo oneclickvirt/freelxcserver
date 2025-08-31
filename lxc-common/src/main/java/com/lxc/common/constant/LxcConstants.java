@@ -3,6 +3,9 @@ package com.lxc.common.constant;
 public interface LxcConstants {
 
 //    String BASE_URL = "https://%s:8443";
+    String TG_BOT_TOKEN = "TGBotToken";
+    String ENABLE_CHECK_MEMBER = "EnableCheckMember";
+    String TG_CHANNEL_ID = "TGChannelID";
     String LXD_PORT = "8443";
 
     String BOOT_NAME = "lxc_testing_bot";

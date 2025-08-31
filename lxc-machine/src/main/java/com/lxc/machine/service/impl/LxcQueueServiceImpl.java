@@ -367,7 +367,7 @@ public class LxcQueueServiceImpl extends BaseService<LxcQueueMapper, LxcQueue> i
         //
         List<Integer> usedContainerNums = checkDuplicateChick(superLxc, superLxcIp);
         // 找出没有连续的数字，比如1,2,5,6返回3 ，1,2,3,4返回5
-        int portIndex = isReset ? (Integer.parseInt(lxcApplyBo.getSshPort()) - 20000) : findFirstDiscontinuous(usedContainerNums);
+        int portIndex = isReset ? (int) ((Long.parseLong(lxcApplyBo.getSshPort()) - superLxc.getSshPortStart()) % Integer.MAX_VALUE) : findFirstDiscontinuous(usedContainerNums);
 
         LxcUser tgUser = loginUser.getLxcUser();
         tgUser.setSurplusQuota(tgUser.getSurplusQuota() - 1);
@@ -390,14 +390,7 @@ public class LxcQueueServiceImpl extends BaseService<LxcQueueMapper, LxcQueue> i
             String lxcPort = LxcConstants.LXD_PORT;
             // 调用REST API执行lxd命令创建实例，重构成incus时改成okHttp来请求API
             InstancesUtils.target(superLxcIp,lxcPort).postInstances(lxc, superLxc, lxcApplyBo);
-            // 定义缓存 key
-            String cacheKey = "lxc:queue:all:" + tgId + ":" + date;
-            // 尝试从 Redis 中获取缓存数据
-            List<LxcQueueVo> queueList = redisUtils.getCacheObject(cacheKey);
-            if (queueList != null) {
-                // 若缓存中存在数据，更新缓存
-                redisUtils.setCacheObject(cacheKey, queueMapper.queryAllLxc(tgId, date), Duration.ofMinutes(Constants.DEFAULT_SAVE_MINUTE));
-            }
+
             // 申请小鸡成功，清理缓存（保持数据一致性）
             RedisUtils.deleteKeys(CacheNames.FREE_LXC_LIST + "*");
             RedisUtils.deleteKeys(CacheNames.STATISTICS_LXC_LIST);
@@ -425,6 +418,9 @@ public class LxcQueueServiceImpl extends BaseService<LxcQueueMapper, LxcQueue> i
         queue.setIp(lxc.getSuperIp());
         queue.setSshPort(lxc.getSshPort());
         baseMapper.insert(queue);
+        // 定义缓存 key
+        String cacheKey = "lxc:queue:all:" + tgId + ":" + date;
+        redisUtils.setCacheObject(cacheKey, queueMapper.queryAllLxc(tgId, date), Duration.ofMinutes(Constants.DEFAULT_SAVE_MINUTE));
         //将lxcApply存到redis，备用于重建，主要还是存小鸡的镜像信息
         String keyOfApplyVo = String.format(CacheNames.LXC_APPLY_VO,lxc.getId());
         if(RedisUtils.getCacheObject(keyOfApplyVo) == null) {
@@ -451,10 +447,8 @@ public class LxcQueueServiceImpl extends BaseService<LxcQueueMapper, LxcQueue> i
         log.info("create allInstancesBase:{}",allInstancesBase);
         log.info("==========================================================");
         Object metadata = allInstancesBase.getMetadata();
-        log.info("create metadata:{}",metadata);
-        log.info("==========================================================");
         // 将lxc list中容器(前缀+序号)中的容器名列表转为string list
-        // 删除小鸡时要注意确保把对应容器删掉，否则会影响重新创建前lxc list读取已创建小鸡列表
+        // 删除小鸡时要注意确保把对应容器删掉，否则会    影响重新创建前lxc list读取已创建小鸡列表
         List<String> instancesList = JSONUtil.parseArray(JSONUtil.toJsonStr(metadata)).toList(String.class);
         //获取去掉前缀的小鸡名称序号列表
         //有个缺点，这里的instancesList是从LXD服务器获取的创建成功的容器列表，

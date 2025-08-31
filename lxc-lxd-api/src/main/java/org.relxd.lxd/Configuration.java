@@ -24,6 +24,7 @@ public class Configuration {
      * @return Default API client
      */
     public static ApiClient getDefaultApiClient() {
+        defaultApiClient.setDebugging(true);
         return defaultApiClient;
     }
 

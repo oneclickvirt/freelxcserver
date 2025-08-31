@@ -1,7 +1,11 @@
-package com.lxc.common.utils;
+package com.lxc.machine.utils;
 
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.lxc.common.constant.LxcConstants;
+import com.lxc.common.utils.spring.SpringUtils;
+import com.lxc.machine.domain.SysConfig4LxcMachine;
+import com.lxc.machine.mapper.SysConfigMapper4LxcMachine;
 import lombok.extern.slf4j.Slf4j;
 import org.telegram.telegrambots.bots.DefaultAbsSender;
 import org.telegram.telegrambots.bots.DefaultBotOptions;
@@ -11,7 +15,45 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 @Slf4j
 public class BotUtils {
+    /**
+     * 获取系统参数设置SysConfig
+     * @param key
+     * @return
+     */
+    private static SysConfig4LxcMachine getSysConfig(String key) {
+        SysConfig4LxcMachine sysConfig4LxcMachine = SpringUtils.getBean(SysConfigMapper4LxcMachine.class).selectOne(new LambdaQueryWrapper<SysConfig4LxcMachine>().eq(SysConfig4LxcMachine::getConfigKey, key));
+        return sysConfig4LxcMachine;
+    }
 
+    /**
+     * 获取ChatId
+     * @param keyOfTGChannelID
+     * @return
+     */
+    public static String getChatId(String keyOfTGChannelID) {
+        SysConfig4LxcMachine sysConfig4LxcMachine = getSysConfig(keyOfTGChannelID);
+        return sysConfig4LxcMachine != null ? sysConfig4LxcMachine.getConfigValue() : LxcConstants.CHAT_ID;
+    }
+
+    /**
+     * 获取BotToken
+     * @param keyOfTGBotToken
+     * @return
+     */
+    public static String getBotToken(String keyOfTGBotToken) {
+        SysConfig4LxcMachine sysConfig4LxcMachine = getSysConfig(keyOfTGBotToken);
+        return sysConfig4LxcMachine != null ? sysConfig4LxcMachine.getConfigValue() : LxcConstants.BOOT_TOKEN;
+    }
+
+    /**
+     * 获取是否开启校验成员
+     * @param keyOfTGEnableCheckMember
+     * @return
+     */
+    public static Boolean getEnableCheckMember(String keyOfTGEnableCheckMember) {
+        SysConfig4LxcMachine sysConfig4LxcMachine = getSysConfig(keyOfTGEnableCheckMember);
+        return sysConfig4LxcMachine != null ? "true".equalsIgnoreCase(sysConfig4LxcMachine.getConfigValue()) : false;
+    }
 
     public static boolean isMember(String ChatId, Long userId) {
 
@@ -26,7 +68,7 @@ public class BotUtils {
         DefaultAbsSender sender = new DefaultAbsSender(botOptions) {
             @Override
             public String getBotToken() {
-                return LxcConstants.BOOT_TOKEN;
+                        return BotUtils.getBotToken(LxcConstants.TG_BOT_TOKEN);
             }
         };
 
@@ -77,7 +119,7 @@ public class BotUtils {
         DefaultAbsSender sender = new DefaultAbsSender(botOptions) {
             @Override
             public String getBotToken() {
-                return LxcConstants.BOOT_TOKEN;
+                return BotUtils.getBotToken(LxcConstants.TG_BOT_TOKEN);
             }
         };
 

@@ -21,6 +21,16 @@
             <groupId>com.lxc</groupId>
             <artifactId>lxc-machine</artifactId>
         </dependency>
+        <!-- framework模块 -->
+<!--        <dependency>-->
+<!--            <groupId>com.lxc</groupId>-->
+<!--            <artifactId>lxc-framework</artifactId>-->
+<!--        </dependency>-->
+        <!--  common模块  -->
+<!--        <dependency>-->
+<!--            <groupId>com.lxc</groupId>-->
+<!--            <artifactId>lxc-common</artifactId>-->
+<!--        </dependency>-->
         <!-- OSS功能模块 -->
         <dependency>
             <groupId>com.lxc</groupId>

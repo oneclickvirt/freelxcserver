@@ -24,6 +24,7 @@ import org.relxd.lxd.ApiException;
 import org.relxd.lxd.ApiResponse;
 import org.relxd.lxd.RelxdApiClient;
 import org.relxd.lxd.api.InstancesApi;
+import org.relxd.lxd.api.OperationsApi;
 import org.relxd.lxd.builders.InstanceConfigBuilder;
 import org.relxd.lxd.builders.SourceConfigBuilder;
 import org.relxd.lxd.model.*;
@@ -31,23 +32,23 @@ import org.relxd.lxd.model.*;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 @Slf4j
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class InstancesUtils {
     //    private final InstancesApi API = SpringUtils.getBean("lxcApi", InstancesApi.class);
     private InstancesApi instancesApi;
+    private OperationsApi operationsApi;
     public static InstancesUtils target(String ip,String port) {
         assert ip != null;
         // port : 8443-lxd 9969-incus
 //        String baseUrl = "https://" + ip + ":9969";
         String baseUrl = "https://" + ip + ":" + port;
-        return new InstancesUtils(new InstancesApi(new RelxdApiClient(baseUrl)));
+        return new InstancesUtils(new InstancesApi(new RelxdApiClient(baseUrl)), new OperationsApi(new RelxdApiClient(baseUrl)));
     }
 
-    private InstancesUtils(InstancesApi instancesApi) {
+    private InstancesUtils(InstancesApi instancesApi, OperationsApi operationsApi) {
         this.instancesApi = instancesApi;
+        this.operationsApi = operationsApi;
     }
 
     private LxcSuperLxcServiceImpl lxcSuperLxcService = SpringUtils.getBean(LxcSuperLxcServiceImpl.class);
@@ -77,12 +78,16 @@ public class InstancesUtils {
 
         CreateInstancesRequest createInstancesRequest = populateCreateInstancesRequest(devicesRoot, sourceConfigBuilder.asMap(), type, profiles, architecture, nameOfContainer, configBuilder.asMap(), false);
 
-//        BackgroundOperationResponse actualCreateInstancesResponse = this.instancesApi.postInstances(target, createInstancesRequest);
-
         try {
             BackgroundOperationResponse actualCreateInstancesResponse = this.instancesApi.postInstances(target, createInstancesRequest);
             log.info("Create Instance Response >>>>>>>>>> " + actualCreateInstancesResponse);
-            assertTrue((Objects.equals(actualCreateInstancesResponse.getStatusCode(), 200)) || Objects.equals(actualCreateInstancesResponse.getStatusCode(), 100));
+            String operation = actualCreateInstancesResponse.getOperation();
+            if (!StringUtils.isEmpty(operation)) {
+                String operationId = operation.split("/")[operation.split("/").length - 1];
+//                BackgroundOperationResponse operationsUUID = this.operationsApi.getOperationsUUID(operationId, null, null);
+//                log.info("Create Instance Operation Response >>>>>>>>>> " + operationsUUID);
+            }
+//            assertTrue((Objects.equals(actualCreateInstancesResponse.getStatusCode(), 200)) || Objects.equals(actualCreateInstancesResponse.getStatusCode(), 100));
 
         } catch (ApiException e) {
             log.error("LXD API Exception: " + e.getMessage());
@@ -780,7 +785,7 @@ public CompletableFuture<Void> postInstancesAsync(LxcLxc lxc, LxcSuperLxc superL
     public LxcContainerState getInstancesByNameState(String instancename) {
         try {
             BackgroundOperationResponse response = instancesApi.getInstancesByNameState(instancename, null, null);
-            log.info("容器[{}]状态: {}\n", instancename, response);
+//            log.info("容器[{}]状态: {}\n", instancename, response);
             LxcContainerState lxcContainerState = getLxcContainerState(instancename, response);
             return lxcContainerState;
         } catch (ApiException e) {
@@ -796,7 +801,7 @@ public CompletableFuture<Void> postInstancesAsync(LxcLxc lxc, LxcSuperLxc superL
         lxcContainerState.setTimestamp(System.currentTimeMillis() * 1000); // 记录时间戳，单位(ns)；统一采用获取到数据后的建立对象后的该事件点
         lxcContainerState.setInstancename(instancename);
         for (Map.Entry<String, Object> entry : entries) {
-            System.out.println("\"" + entry.getKey() + "\":" + entry.getValue());
+//            System.out.println("\"" + entry.getKey() + "\":" + entry.getValue());
             if (entry.getKey().equals("cpu")) {
                 JSONObject cpuJson = JSONUtil.parseObj(entry.getValue().toString());
                 lxcContainerState.setCpu(Double.parseDouble(cpuJson.get("usage").toString()));
@@ -819,5 +824,16 @@ public CompletableFuture<Void> postInstancesAsync(LxcLxc lxc, LxcSuperLxc superL
             }
         }
         return lxcContainerState;
+    }
+
+    public String getOperationLog(String uuid) {
+        BackgroundOperationResponse operationsUUID = null;
+        try {
+            operationsUUID = this.operationsApi.getOperationsUUID(uuid, null, null);
+        } catch (ApiException e) {
+            throw new RuntimeException(e);
+        }
+        log.info("Operation Log: {}", operationsUUID);
+        return operationsUUID.toString();
     }
 }

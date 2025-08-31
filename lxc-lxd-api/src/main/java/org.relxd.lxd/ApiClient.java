@@ -20,6 +20,7 @@ import okhttp3.logging.HttpLoggingInterceptor;
 import okhttp3.logging.HttpLoggingInterceptor.Level;
 import okio.BufferedSink;
 import okio.Okio;
+import org.jetbrains.annotations.NotNull;
 import org.relxd.lxd.auth.ApiKeyAuth;
 import org.relxd.lxd.auth.Authentication;
 import org.relxd.lxd.auth.HttpBasicAuth;
@@ -752,8 +753,10 @@ public class ApiClient {
 
         String respBody;
         try {
-            if (response.body() != null)
+            if (response.body() != null) {
                 respBody = response.body().string();
+                System.out.println(respBody);
+            }
             else
                 respBody = null;
         } catch (IOException e) {
@@ -930,9 +933,10 @@ public class ApiClient {
     @SuppressWarnings("unchecked")
     public <T> void executeAsync(Call call, final Type returnType, final ApiCallback<T> callback) {
         call.enqueue(new Callback() {
+
             @Override
-            public void onFailure(Call call, IOException e) {
-                callback.onFailure(new ApiException(e), 0, null);
+            public void onFailure(@NotNull Call call, @NotNull IOException e) {
+                callback.onFailure(e, 0, null);
             }
 
             @Override
@@ -960,13 +964,15 @@ public class ApiClient {
      *                      fail to deserialize the response body
      */
     public <T> T handleResponse(Response response, Type returnType) throws ApiException {
-//        System.out.println("response:" + response);
         if (response.isSuccessful()) {
+            System.out.println("HTTP Request status code: " + response.code());
+
             if (returnType == null || response.code() == 204) {
                 // returning null if the returnType is not defined,
                 // or the status code is 204 (No Content)
                 if (response.body() != null) {
                     try {
+                        System.out.println("Response Body: " + response.body().string());
                         response.body().close();
                     } catch (Exception e) {
                         throw new ApiException(response.message(), e, response.code(), response.headers().toMultimap());
@@ -974,11 +980,22 @@ public class ApiClient {
                 }
                 return null;
             } else {
+//                try {
+//                    System.out.println("Response Body: " + response.body().string());
+//                } catch (IOException e) {
+//                    throw new RuntimeException(e);
+//                }
                 return deserialize(response, returnType);
             }
         } else {
             String respBody = null;
             if (response.body() != null) {
+                System.out.println("HTTP Request status code: " + response.code());
+                try {
+                    System.out.println("Response Body: " + response.body().string());
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
                 try {
                     respBody = response.body().string();
                 } catch (IOException e) {

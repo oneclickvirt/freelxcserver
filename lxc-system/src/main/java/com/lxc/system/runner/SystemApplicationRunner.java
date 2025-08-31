@@ -3,8 +3,6 @@ package com.lxc.system.runner;
 import com.lxc.common.constant.CacheNames;
 import com.lxc.common.utils.redis.RedisUtils;
 import com.lxc.framework.config.LxcConfig;
-import com.lxc.machine.service.ILxcLxcService;
-import com.lxc.machine.service.ILxcQueueService;
 import com.lxc.machine.service.ILxcSuperLxcService;
 import com.lxc.system.service.ISysConfigService;
 import com.lxc.system.service.ISysDictTypeService;
@@ -35,9 +33,7 @@ public class SystemApplicationRunner implements ApplicationRunner {
     private final ISysConfigService configService;
     private final ISysDictTypeService dictTypeService;
     private final ISysOssConfigService ossConfigService;
-    private final ILxcLxcService lxcLxcService;
     private final ILxcSuperLxcService lxcSuperLxcService;
-    private final ILxcQueueService lxcQueueService;
 
     @Autowired(required = false)
     TelegramBotsApi telegramBotsApi;

@@ -13,6 +13,7 @@
 
 package org.relxd.lxd;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -22,6 +23,8 @@ import java.util.Map;
  * @param <T> The return type
  */
 public interface ApiCallback<T> {
+    void onFailure(IOException e, int statusCode, String responseBody);
+
     /**
      * This is called when the API call fails.
      *

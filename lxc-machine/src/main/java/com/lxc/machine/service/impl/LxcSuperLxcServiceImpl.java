@@ -21,6 +21,7 @@ import com.lxc.machine.domain.LxcLxc;
 import com.lxc.machine.domain.LxcQueue;
 import com.lxc.machine.domain.LxcSuperLxc;
 import com.lxc.machine.domain.SysSuperRole;
+import com.lxc.machine.domain.bo.LxcQueueBo;
 import com.lxc.machine.domain.bo.LxcSuperLxcBo;
 import com.lxc.machine.domain.vo.LxcCartVo;
 import com.lxc.machine.domain.vo.LxcQueueVo;
@@ -179,15 +180,20 @@ public class LxcSuperLxcServiceImpl extends BaseService<LxcSuperLxcMapper, LxcSu
             // 删除后更新缓存
             LambdaQueryWrapper<LxcQueue> queueLqw = new LambdaQueryWrapper<>();
             queueLqw.eq(LxcQueue::getIp, superLxcIp);
-            LxcQueue lxcQueue = lxcQueueService.getOne(queueLqw); // 目的是获取到tg_id
+            LxcQueueBo lxcQueueBo = new LxcQueueBo();
+            lxcQueueBo.setIp(superLxcIp);
+            List<LxcQueueVo> lxcQueueList = lxcQueueService.queryList(lxcQueueBo);
             lxcQueueService.delete(new QueryWrapper<LxcQueue>().eq("ip",superLxcIp));
-            // 定义缓存 key
-            String cacheKey = "lxc:queue:all:" + lxcQueue.getTgId() + ":" + DateUtils.getDate();
-            // 尝试从 Redis 中获取缓存数据
-            List<LxcQueueVo> queueList = redisUtils.getCacheObject(cacheKey);
-            if (queueList != null) {
-                // 若缓存中存在数据，删除缓存，因为宿主机已经要删除
-                redisUtils.deleteObject(cacheKey);
+            // 对列表中每一个容器都删除
+            for (LxcQueueVo lxcQueueVo : lxcQueueList) {
+                // 定义缓存 key
+                String cacheKey = "lxc:queue:all:" + lxcQueueVo.getTgId() + ":" + DateUtils.getDate();
+                // 尝试从 Redis 中获取缓存数据
+                List<LxcQueueVo> queueList = redisUtils.getCacheObject(cacheKey);
+                if (queueList != null) {
+                    // 若缓存中存在数据，删除缓存，因为宿主机已经要删除
+                    redisUtils.deleteObject(cacheKey);
+                }
             }
             lxcLxcService.delete(new QueryWrapper<LxcLxc>().eq("super_ip",superLxcIp));
             sysSuperRoleService.delete(new QueryWrapper<SysSuperRole>().eq("super_id",id));

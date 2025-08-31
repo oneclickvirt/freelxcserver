@@ -1,7 +1,7 @@
 package com.lxc.system.telegram;
 
 import com.lxc.common.constant.LxcConstants;
-import com.lxc.common.utils.BotUtils;
+import com.lxc.machine.utils.BotUtils;
 import com.lxc.common.utils.StringUtils;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -36,7 +36,7 @@ public class LxcBot extends TelegramLongPollingBot {
 
     @Override
     public String getBotToken() {
-        return LxcConstants.BOOT_TOKEN;
+        return BotUtils.getBotToken(LxcConstants.TG_BOT_TOKEN);
     }
 
 
@@ -66,7 +66,7 @@ public class LxcBot extends TelegramLongPollingBot {
      */
     @SneakyThrows
     @Async
-    public void sendTextMsg(String text, String chatId,Integer messageId) {
+    public void sendTextMsg(String text, String chatId, Integer messageId) {
         SendMessage sendMessage = SendMessage.builder()
             .chatId(chatId)
             .text(text)
@@ -129,7 +129,7 @@ public class LxcBot extends TelegramLongPollingBot {
     }
 
     private void doHandel(Long chatId, String param, Integer messageId) {
-        if (BotUtils.isMember(LxcConstants.CHAT_ID,chatId)) { // TODO 跳过验证，判断取反
+        if (BotUtils.isMember(BotUtils.getChatId(LxcConstants.TG_CHANNEL_ID),chatId)) { // TODO 跳过验证，判断取反
             String text = lxcHandler.handle(chatId,param);
             if (StringUtils.equals(text,"start")) {
                 sendStartMsg(chatId.toString());

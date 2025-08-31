@@ -5,6 +5,14 @@ import lombok.Data;
 @Data
 public class LxcContainerStateVo {
     /**
+     * tgid
+     */
+    String tgId;
+    /**
+     * 容器唯一 ID（非容器名）
+     */
+    String containerId;
+    /**
      * 实例名称
      */
     String instancename;
@@ -21,9 +29,9 @@ public class LxcContainerStateVo {
      */
     Double disk;
     /**
-     * 网络流量使用量
+     * 截止当前小时（每小时统计一次），网络流量使用量
      */
-    Double network;
+//    Double network;
     /**
      * 时间戳，纳秒级
      */

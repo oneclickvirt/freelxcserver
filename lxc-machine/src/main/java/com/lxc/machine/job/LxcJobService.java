@@ -1,30 +1,29 @@
 package com.lxc.machine.job;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.lxc.common.constant.CacheNames;
 import com.lxc.common.constant.LxcConstants;
 import com.lxc.common.core.domain.dto.ShellDto;
-import com.lxc.common.core.domain.model.LoginUser;
 import com.lxc.common.enums.LxcStatus;
-import com.lxc.common.helper.LoginHelper;
 import com.lxc.common.utils.BeanCopyUtils;
 import com.lxc.common.utils.DateUtils;
 import com.lxc.common.utils.ShellUtils;
 import com.lxc.common.utils.StringUtils;
 import com.lxc.common.utils.redis.RedisUtils;
-import com.lxc.machine.domain.LxcContainerState;
-import com.lxc.machine.domain.LxcLxc;
-import com.lxc.machine.domain.LxcSuperLxc;
+import com.lxc.machine.domain.*;
 import com.lxc.machine.domain.bo.LxcLxcBo;
-import com.lxc.machine.domain.vo.LxcContainerStateVo;
 import com.lxc.machine.domain.vo.LxcLxcVo;
 import com.lxc.machine.domain.vo.LxcSuperLxcVo;
+import com.lxc.machine.mapper.LxcContainerMetricsDailyMapper;
+import com.lxc.machine.mapper.LxcContainerMetricsHourlyMapper;
+import com.lxc.machine.mapper.LxcQueueMapper;
+import com.lxc.machine.mapper.LxcUserMonthlyTrafficMapper;
 import com.lxc.machine.service.ILxcLxcService;
+import com.lxc.machine.service.ILxcQueueService;
 import com.lxc.machine.service.ILxcSuperLxcService;
-import com.lxc.machine.service.WebSocketServer;
 import com.lxc.machine.service.impl.LxcQueueServiceImpl;
+import com.lxc.machine.utils.CommonUtils;
 import com.lxc.machine.utils.InstancesUtils;
 import com.xxl.job.core.context.XxlJobHelper;
 import com.xxl.job.core.handler.annotation.XxlJob;
@@ -37,17 +36,10 @@ import org.relxd.lxd.model.BackgroundOperationResponse;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
-import javax.websocket.EncodeException;
-import javax.websocket.Session;
-import java.io.IOException;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.lxc.common.utils.ShellUtils.NET_INCUS_USED;
@@ -61,8 +53,17 @@ public class LxcJobService {
 
     private final ILxcLxcService lxcService;
 
+    private final ILxcQueueService lxcQueueService;
+
+    private final LxcQueueMapper lxcQueueMapper;
+
     private final ILxcSuperLxcService lxcSuperLxcService;
 
+    private final LxcUserMonthlyTrafficMapper lxcUserMonthlyTrafficMapper;
+
+    private final LxcContainerMetricsHourlyMapper lxcContainerMetricsHourlyMapper;
+
+    private final LxcContainerMetricsDailyMapper lxcContainerMetricsDailyMapper;
 
 
     /**
@@ -75,8 +76,7 @@ public class LxcJobService {
                 .eq("lxc_status", LxcStatus.RESETING.getCode())     // 0
                 .orderBy(true, true, "create_time")
         );
-        XxlJobHelper.log("处于WAITING_FOR_PROCESS未初始化状态的小鸡有：{}个", lxcWaitngList.size());
-        log.info("处于WAITING_FOR_PROCESS未初始化状态的小鸡有：{}个", lxcWaitngList.size());
+//        XxlJobHelper.log("处于WAITING_FOR_PROCESS未初始化状态的小鸡有：{}个", lxcWaitngList.size());
         lxcWaitngList.stream()
             .collect(Collectors.groupingBy(LxcLxcVo::getSuperIp))
             .forEach(
@@ -99,7 +99,7 @@ public class LxcJobService {
                             System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>  " + way);
                             String lxcPort = LxcConstants.LXD_PORT;
                             try {
-                                //获取实例的运行时状态。
+                                //获取实例的运行时状态。如果获取不到信息，会报异常，进入catch
                                 BackgroundOperationResponse instancesByNameState = lxcApi.of(superIp, lxcPort).getInstancesByNameState(lxcVoList.get(i).getChildName(), null, null);
 //                                System.out.println("当前小鸡 " + lxcVoList.get(i).getChildName() + " 的状态：" + instancesByNameState);
                                 log.info("等待创建的小鸡{}，它的信息为{}", lxcVoList.get(i).getChildName(), instancesByNameState);
@@ -379,6 +379,7 @@ public class LxcJobService {
     }
 
     /**
+     * todo 重建小鸡需要跟原小鸡的流量计算区分开来 重建小鸡时会把原来小鸡的信息删除，可能需要留着，方便后面统计流量信息（containerId）
      * 重设重建小鸡前流量超限状态并冻结小鸡
      */
     @XxlJob("resetTrafficLimitStatus")
@@ -430,19 +431,13 @@ public class LxcJobService {
      * 每一次5s采样一次，保存到redis中，
      * 其中只有cpu是需要参与差值计算来计算cpu使用率，流量出入用于1h的统计；其他数据仅用来在前端动态展示信息
      */
-    @XxlJob("getContainerInfo")
+    /*@XxlJob("getContainerInfo")
     public void getContainerInfo() {
         // 1、获取所有状态为Running的容器（groupby superIp）
         // 1.1 先将所有未过期、可开容器的宿主机获取出来，ip、super_status、expire_flag、memory_limit、disk_limit、traffic_total_limit
         // ⭐仅有管理员需要进行后续操作
         log.info("getContainerInfo执行");
         LoginUser loginUser = LoginHelper.getLoginUser();
-//        loginUser.getRolePermission().forEach(rolePermission -> {
-//            if(rolePermission.equals("admin")) {
-//                log.info("管理员账号getContainerInfo执行");
-//
-//            }
-//        });
         List<LxcSuperLxc> superLxcList = lxcSuperLxcService.list(
             new LambdaQueryWrapper<LxcSuperLxc>()
                 .ne(LxcSuperLxc::getSuperStatus, LxcConstants.LXC_SUPER_DISABLED)
@@ -491,16 +486,16 @@ public class LxcJobService {
                     LxcContainerStateVo lxcContainerStateVo = new LxcContainerStateVo();
                     BeanUtils.copyProperties(instancesByNameState, lxcContainerStateVo);
                     lxcContainerStateVo.setCpuUsage(cpuUsage);
-                    lxcContainerStateVo.setNetwork(recv + send);
+//                    lxcContainerStateVo.setNetwork(recv + send);
                     // todo 用websocket推送到前端
-                    Session session = WebSocketServer.sessionPools.get(loginUser.getTgId());
-                    try {
-                        session.getBasicRemote().sendObject(lxcContainerStateVo);
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
-                    } catch (EncodeException e) {
-                        throw new RuntimeException(e);
-                    }
+//                    Session session = WebSocketServer.sessionPools.get(loginUser.getTgId());
+//                    try {
+//                        session.getBasicRemote().sendObject(lxcContainerStateVo);
+//                    } catch (IOException e) {
+//                        throw new RuntimeException(e);
+//                    } catch (EncodeException e) {
+//                        throw new RuntimeException(e);
+//                    }
                 } else {
                     // Running状态下的容器获取不到状态
                     XxlJobHelper.log("Running状态下的容器获取不到状态，superIp：{}，childName：{}",superIp,childName);
@@ -508,32 +503,142 @@ public class LxcJobService {
                 }
             });
         });
-    }
+    }*/
 
     /**
      * 每一次1h处理一次，清除redis中秒级数据，统计小时级流量信息保存到数据库
+     * 包含了每日的信息，如果想要统计每一天的流量使用情况，也可以直接用lxc_plus.lxc_container_metrics_hourly表
      */
     @XxlJob("hourLevelTraffic")
     public void hourLevelTraffic() {
+        List<LxcSuperLxc> aliveLxcSuperLxcList = lxcSuperLxcService.getAliveLxcSuperLxcList();
+        for (LxcSuperLxc superLxc : aliveLxcSuperLxcList) {
+            List<LxcLxcVo> lxcList = lxcService.getLxcList(new QueryWrapper<LxcLxc>().eq("super_ip", superLxc.getIp()).eq("lxc_status", LxcStatus.RUNNING.getCode()));
+            for (LxcLxcVo lxc : lxcList) {
+                String keyOfNetworkRecvDelta = String.format(CacheNames.LXC_NETWORK_RECV_DELTA, lxc.getId());
+                String keyOfNetworkSendDelta = String.format(CacheNames.LXC_NETWORK_SEND_DELTA, lxc.getId());
+                long trafficRecv = 0;
+                long trafficSend = 0;
+                if (RedisUtils.hasKey(keyOfNetworkRecvDelta)) {
+                    List<String> recvDeltaList = RedisUtils.getCacheList(keyOfNetworkRecvDelta);
+                    for (String delta : recvDeltaList) {
+                        trafficRecv += Long.parseLong(delta);
+                    }
+                    RedisUtils.deleteObject(keyOfNetworkRecvDelta);
+                }
+                if (RedisUtils.hasKey(keyOfNetworkSendDelta)) {
+                    List<String> sendDeltaList = RedisUtils.getCacheList(keyOfNetworkSendDelta);
+                    for (String delta : sendDeltaList) {
+                        trafficSend += Long.parseLong(delta);
+                    }
+                    RedisUtils.deleteObject(keyOfNetworkSendDelta);
+                }
+                // 取现在的日期 yyyy-MM-dd
+                LocalDate currentDate = LocalDate.now();
+                // 定义日期格式化器
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+                // 格式化日期
+                String nowDate = currentDate.format(formatter);
+                LxcQueue lxcQueue = lxcQueueService.getOne(new QueryWrapper<LxcQueue>().eq("lxc_id", lxc.getId()));
+                // 取当天保存过的小时统计的流量数据
+                List<LxcContainerMetricsHourly> containerMetricsHourlyList = lxcContainerMetricsHourlyMapper.selectList(new QueryWrapper<LxcContainerMetricsHourly>().eq("tg_id", lxcQueue.getTgId()).eq("DateTag", nowDate).orderByDesc("hourstamp"));
+                LxcContainerMetricsHourly insertContainerMetricsHourly = new LxcContainerMetricsHourly();
+                if (!containerMetricsHourlyList.isEmpty()) {
+                    // 取最新一条记录
+                    LxcContainerMetricsHourly latestSampleNetwork = containerMetricsHourlyList.get(0);
+                    // 如果是0点的采样统计，应该会被计算到第二天，即containerMetricsHourlyList为空
+                    insertContainerMetricsHourly.setHourstamp(latestSampleNetwork.getHourstamp() + 1);
+                } else {
+                    insertContainerMetricsHourly.setHourstamp(0);
+                }
+                setContainerMetricsHourly(lxc, trafficRecv, trafficSend, nowDate, lxcQueue, insertContainerMetricsHourly);
+                lxcContainerMetricsHourlyMapper.insert(insertContainerMetricsHourly);
+            }
+        }
+        updateMonthTrafficAndCheckExceed();
+    }
 
+    private static void setContainerMetricsHourly(LxcLxcVo lxc, long trafficRecv, long trafficSend, String nowDate, LxcQueue lxcQueue, LxcContainerMetricsHourly insertContainerMetricsHourly) {
+        insertContainerMetricsHourly.setTgId(lxcQueue.getTgId());
+        insertContainerMetricsHourly.setContainerId(lxc.getId().toString());
+        insertContainerMetricsHourly.setContainerName(lxc.getChildName());
+        insertContainerMetricsHourly.setDateTag(nowDate);
+        insertContainerMetricsHourly.setNetIn(trafficRecv);
+        insertContainerMetricsHourly.setNetOut(trafficSend);
     }
 
     /**
-     * 每一次1day处理一次，统计数据库中小时级流量信息，保存到数据库
+     * 更新月表，冻结容器的判断间隔为1小时
      */
-    @XxlJob("dayLevelTraffic")
-    public void dayLevelTraffic() {
-
+    private void updateMonthTrafficAndCheckExceed() {
+        // 定义日期格式化器
+        DateTimeFormatter formatter2ym = DateTimeFormatter.ofPattern("yyyy-MM");
+        // 格式化日期
+        String nowMonth = LocalDate.now().format(formatter2ym);
+        // 获取所有tg_id
+        List<String> tgIdList = lxcQueueMapper.selectObjs(new QueryWrapper<LxcQueue>().select("DISTINCT tg_id")).stream().map(String.class::cast) .collect(Collectors.toList());
+        for (String tgId : tgIdList) {
+            LxcUserMonthlyTraffic monthlyTraffic = lxcUserMonthlyTrafficMapper.selectOne(new QueryWrapper<LxcUserMonthlyTraffic>().eq("tg_id", tgId).eq("month_tag", nowMonth));
+            long trafficUsed = 0;
+            if (monthlyTraffic != null) {
+                // 当月流量已有记录，更新流量
+                List<LxcContainerMetricsHourly> containerMetricsHourlyList = lxcContainerMetricsHourlyMapper.selectList(new QueryWrapper<LxcContainerMetricsHourly>().eq("tg_id", tgId));
+                if (!containerMetricsHourlyList.isEmpty()) {
+                    for (LxcContainerMetricsHourly containerMetricsHourly : containerMetricsHourlyList) {
+                        trafficUsed += containerMetricsHourly.getNetIn() + containerMetricsHourly.getNetOut();
+                    }
+                }
+                long usedTraffic = monthlyTraffic.getTrafficUsed() + trafficUsed;
+                if (usedTraffic > monthlyTraffic.getTrafficLimit()) {
+                    // 流量超限，设置状态为exceeded
+                    monthlyTraffic.setStatus("exceeded");
+                    monthlyTraffic.setIsFrozen(1); // 1-冻结，0-正常
+                    monthlyTraffic.setFrozenAt(new Date());
+                    List<LxcQueue> queueList = lxcQueueMapper.selectList(new QueryWrapper<LxcQueue>().eq("tg_id", tgId));
+                    for (LxcQueue queue : queueList) {
+                        try {
+                            LxcSuperLxc superLxc = lxcSuperLxcService.getOne(new QueryWrapper<LxcSuperLxc>().eq("ip", queue.getIp()));
+                            String res = ShellUtils.execCmdAndReturnStatus(ShellDto.builder().ip(superLxc.getIp()).password(superLxc.getPassword()).way(superLxc.getWay()).modifyType("traffic_limit").childName(queue.getChildName()).build());
+                            // lxc表中的状态更新为冻结
+                            lxcService.updateStatus(LxcStatus.TRAFFIC_LIMIT.getCode(), queue.getLxcId());
+                            log.info("冻结小鸡{}的流量，命令执行结果：{}", queue.getChildName(), res);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+                monthlyTraffic.setTrafficUsed(usedTraffic);
+                lxcUserMonthlyTrafficMapper.updateById(monthlyTraffic);
+                log.info("monthly表数据更新成功:{}", monthlyTraffic);
+            } else {
+                // 当月流量没有记录，新增记录
+                LxcQueue queue = lxcQueueService.getOne(new QueryWrapper<LxcQueue>().eq("tg_id", tgId));
+                LxcSuperLxc superLxc = lxcSuperLxcService.getOne(new QueryWrapper<LxcSuperLxc>().eq("ip", queue.getIp()));
+                LxcUserMonthlyTraffic newMonthlyTraffic = new LxcUserMonthlyTraffic();
+                newMonthlyTraffic.setTgId(tgId);
+                newMonthlyTraffic.setMonthTag(nowMonth);
+                newMonthlyTraffic.setTrafficUsed(trafficUsed);
+                newMonthlyTraffic.setTrafficLimit(CommonUtils.numUnit2Decimal(superLxc.getTrafficTotalLimit()).longValue());
+                newMonthlyTraffic.setStatus("normal");
+                newMonthlyTraffic.setIsFrozen(0);
+                lxcUserMonthlyTrafficMapper.insert(newMonthlyTraffic);
+                log.info("monthly表数据添加成功:{}", newMonthlyTraffic);
+            }
+        }
     }
 
     /**
      * 每一次1month处理一次，统计数据库中日级流量信息，保存到数据库
      */
-    @XxlJob("monthLevelTraffic")
-    public void monthLevelTraffic() {
+//    @XxlJob("monthLevelTraffic")
+//    public void monthLevelTraffic() {
+//
+//    }
 
-    }
-
+    /**
+     * todo 判断超限的逻辑在hourLevelTraffic方法中处理
+     * 判断网络流量使用是否超过阈值
+     */
     @XxlJob("checkAndSetNetExceed")
     public void checkAndSetNetExceed() {
         //对母鸡操作，在后台调出每只小鸡的名称和ip？然后注意获取网络流量，判断是否超过阈值
@@ -583,11 +688,11 @@ public class LxcJobService {
                         System.out.println(childName + "的流量使用情况为："+list);
                     }
                     String trafficTotalLimit = superLxc.getTrafficTotalLimit();
-                    BigDecimal tTL2MB = numUnit2Decimal(trafficTotalLimit);
+                    BigDecimal tTL2MB = CommonUtils.numUnit2Decimal(trafficTotalLimit);
                     BigDecimal summaryNetFlow = lxcLxcVo.getLxcTraffic();
                     for (String flow : list) {
                         // 将kB和B化为MB
-                        summaryNetFlow = summaryNetFlow.add(numUnit2Decimal(flow));
+                        summaryNetFlow = summaryNetFlow.add(CommonUtils.numUnit2Decimal(flow));
                         try {
                             if(summaryNetFlow.compareTo(tTL2MB) == 1){
                                 // 小鸡关机且不能让前端的开机操作响应；
@@ -615,37 +720,11 @@ public class LxcJobService {
         }
     }
 
-    private BigDecimal numUnit2Decimal(String trafficTotalLimit) {
-        String tTLNumberStr = extractNumber(trafficTotalLimit);
-        String tTLUnitStr = extractUnit(trafficTotalLimit);
-        BigDecimal tTL2MB = unitUnify(tTLNumberStr,tTLUnitStr);
-        return tTL2MB;
-    }
+
+
 
     /**
-     * 流量单位换算 -> MB
-     * @param numberStr
-     * @param unitStr
-     * @return
-     */
-    private BigDecimal unitUnify(String numberStr,String unitStr) {
-        // 将kB、B、GB的单位化成MB
-        BigDecimal flowNum = new BigDecimal(numberStr);
-        switch (unitStr.toLowerCase()) {
-            case "kb":
-                flowNum = flowNum.divide(new BigDecimal(1024),2, RoundingMode.HALF_UP);
-                break;
-            case "b":
-                flowNum = flowNum.divide(new BigDecimal(1024*1024),2,RoundingMode.HALF_UP);
-                break;
-            case "gb":
-                flowNum = flowNum.multiply(new BigDecimal(1024));
-                break;
-        }
-        return flowNum;
-    }
-
-    /**
+     * todo 判断超限的数据要从新表中获取
      * 重置流量超限小鸡，除了解除冻结，还要重新考虑流量计数
      */
     @XxlJob("resetNetExceed")
@@ -693,41 +772,7 @@ public class LxcJobService {
         }
     }
 
-    /**
-     * 正则表达式提取浮点数
-     * @param input
-     * @return
-     */
-    public static String extractNumber(String input) {
-        // 定义一个正则表达式来匹配浮点数部分
-        String numberRegex = "[+-]?([0-9]*[.])?[0-9]+";
-        Pattern pattern = Pattern.compile(numberRegex);
-        Matcher matcher = pattern.matcher(input);
 
-        if (matcher.find()) {
-            return matcher.group();
-        } else {
-            return null; // 或者返回一个默认值，取决于你的需求
-        }
-    }
-
-    /**
-     * 正则表达式提取字符串
-     * @param input
-     * @return
-     */
-    public static String extractUnit(String input) {
-        // 定义一个正则表达式来匹配单位部分
-        String unitRegex = "[a-zA-Z]+";
-        Pattern pattern = Pattern.compile(unitRegex);
-        Matcher matcher = pattern.matcher(input);
-
-        if (matcher.find()) {
-            return matcher.group();
-        } else {
-            return null; // 或者返回一个默认值，取决于你的需求
-        }
-    }
 
     @Test
     public void test() throws Exception {

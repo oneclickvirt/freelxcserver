@@ -136,15 +136,17 @@ spring:
     # 地址
 #    host: 192.168.1.102
 #    host: 117.174.77.201
-#    host: localhost
-    host: 47.237.120.189
+    host: localhost
+#    host: 47.237.120.189
+#    host: 47.245.40.12
 #    host: 94.154.37.20
     # 端口，默认为6379
     port: 6379
     # 数据库索引
     database: 8
     # 密码(如没有密码请注释掉)
-    password: "redis_EzK8JRPJsbdna5HQ"
+#    password: "redis_EzK8JRPJsbdna5HQ"
+#    password: "HlGHLm9Q0e5HCim2fUbl"
     # 连接超时时间
     timeout: 20s
     # 是否开启ssl

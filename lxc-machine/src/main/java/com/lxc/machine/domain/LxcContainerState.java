@@ -5,6 +5,14 @@ import lombok.Data;
 @Data
 public class LxcContainerState {
     /**
+     * tgid
+     */
+    String tgId;
+    /**
+     * 容器唯一 ID（非容器名）
+     */
+    String containerId;
+    /**
      * 实例名称
      */
     String instancename;
@@ -28,6 +36,10 @@ public class LxcContainerState {
      * 网络流量发送量
      */
     Double send;
+    /**
+     * 网络流量使用总和
+     */
+    Double network;
     /**
      * 时间戳，纳秒级
      */

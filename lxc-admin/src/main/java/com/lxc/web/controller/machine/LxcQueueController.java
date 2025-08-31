@@ -26,13 +26,11 @@ import com.lxc.common.core.validate.lxc.LxcEditGroup;
 import com.lxc.common.enums.BusinessType;
 import com.lxc.common.enums.LimitType;
 import com.lxc.common.enums.LxcStatus;
-import com.lxc.common.utils.BotUtils;
 import com.lxc.common.utils.DateUtils;
 import com.lxc.common.utils.ShellUtils;
 import com.lxc.common.utils.StringUtils;
 import com.lxc.common.utils.poi.ExcelUtil;
 import com.lxc.common.utils.redis.RedisUtils;
-import com.lxc.machine.domain.LxcContainerState;
 import com.lxc.machine.domain.LxcLxc;
 import com.lxc.machine.domain.LxcQueue;
 import com.lxc.machine.domain.LxcSuperLxc;
@@ -47,6 +45,7 @@ import com.lxc.machine.mapper.LxcLxcMapper;
 import com.lxc.machine.mapper.LxcQueueMapper;
 import com.lxc.machine.mapper.LxcSuperLxcMapper;
 import com.lxc.machine.service.*;
+import com.lxc.machine.utils.BotUtils;
 import com.lxc.machine.utils.HostUtils;
 import com.lxc.machine.utils.InstancesUtils;
 import lombok.Data;
@@ -120,7 +119,7 @@ public class LxcQueueController extends BaseController {
             LoginUser loginUser = this.getLoginUser();
             String tgId = loginUser.getTgId();
             //账号验证
-            if (!BotUtils.isMember(LxcConstants.CHAT_ID, Long.valueOf(tgId))) {
+            if (!BotUtils.isMember(BotUtils.getChatId(LxcConstants.TG_CHANNEL_ID), Long.valueOf(tgId))) {
                 return R.fail(1403, "");  // TODO 改了验证
 //                return R.success("申请成功");
             }
@@ -160,7 +159,7 @@ public class LxcQueueController extends BaseController {
             return R.fail("来晚啦，小鸡已经被抢光了");
         }
         LxcUser tgUser = loginUser.getLxcUser();
-        if (!BotUtils.isMember(LxcConstants.CHAT_ID, Long.valueOf(tgId))) {
+        if (!BotUtils.isMember(BotUtils.getChatId(LxcConstants.TG_CHANNEL_ID), Long.valueOf(tgId))) {
             return R.fail(1403);
         }
         if (lxcUserService.count(new QueryWrapper<LxcUser>().eq("tg_id", tgId)) <= 0) {
@@ -234,12 +233,11 @@ public class LxcQueueController extends BaseController {
     }
 
     @SaCheckPermission("lxc:lxc:all")
-    @GetMapping("/testInstanceLog/{instancename}")
+    @GetMapping("/testInstanceLog/{uuid}")
     @Log(title = "获取小鸡执行日志", businessType = BusinessType.OTHER)
-    public R testInstanceLog(@PathVariable String instancename) {
-//        InstancesUtils.target("8.216.37.221", LxcConstants.LXD_PORT).getInstancesByNameConsoleWithHttpInfo(instancename);
-        LxcContainerState instancesState = InstancesUtils.target("8.216.37.221", LxcConstants.LXD_PORT).getInstancesByNameState(instancename);
-        return R.ok("执行成功", instancesState);
+    public R testInstanceLog(@PathVariable String uuid) {
+        String res = InstancesUtils.target("66.70.153.71", LxcConstants.LXD_PORT).getOperationLog(uuid);
+        return R.ok("执行成功", res);
     }
 
     @SaCheckPermission("lxc:lxc:all")
@@ -264,7 +262,7 @@ public class LxcQueueController extends BaseController {
         LoginUser loginUser = this.getLoginUser();
         String tgId = loginUser.getTgId();
 
-        if (!BotUtils.isMember(LxcConstants.CHAT_ID, Long.valueOf(tgId))) {
+        if (!BotUtils.isMember(BotUtils.getChatId(LxcConstants.TG_CHANNEL_ID), Long.valueOf(tgId))) {
             return R.fail(1403);  // TODO 改了验证
         }
 
@@ -414,7 +412,7 @@ public class LxcQueueController extends BaseController {
         String tgId = loginUser.getTgId();
 
         //账号验证
-        if (!BotUtils.isMember(LxcConstants.CHAT_ID, Long.valueOf(tgId))) {
+        if (!BotUtils.isMember(BotUtils.getChatId(LxcConstants.TG_CHANNEL_ID), Long.valueOf(tgId))) {
             return R.fail(1403, "");    // TODO 改了验证
 //            return R.success("跳过验证");
         }

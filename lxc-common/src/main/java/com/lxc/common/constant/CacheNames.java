@@ -113,8 +113,35 @@ public interface CacheNames {
      */
     String IMAGE_ALIAS = ":super:alias";
     /**
-     * cpu使用量
+     * 容器运行状态缓存    lxc:running_state:{containerId}
      */
-    String LXC_CONTAINER_STATE = "lxc:container_state:%s";
-
+    String LXC_RUNNING_STATE = "lxc:running_state:%s";
+    /**
+     * cpu使用量   lxc:cpu_usage:{containerId}
+     */
+    String LXC_CPU_USAGE = "lxc:cpu_usage:%s";
+    /**
+     * 流量network使用量    lxc:network_usage:{containerId}
+     */
+    String LXC_NETWORK_USAGE = "lxc:network_usage:%s";
+    /**
+     * 流出流量send使用量  lxc:network_send:{containerId}
+     */
+    String LXC_NETWORK_SEND = "lxc:network_send:%s";
+    /**
+     * 流入流量recv使用量  lxc:network_recv:{containerId}
+     */
+    String LXC_NETWORK_RECV = "lxc:network_recv:%s";
+    /**
+     * 流量的增量值  lxc:network_usage:{containerId}
+     */
+    String LXC_NETWORK_USAGE_DELTA = "lxc:network_usage_delta:%s";
+    /**
+     * 流入流量的增量值  lxc:network_recv:{containerId}
+     */
+    String LXC_NETWORK_RECV_DELTA = "lxc:network_recv_delta:%s";
+    /**
+     * 流出流量的增量值  lxc:network_send:{containerId}
+     */
+    String LXC_NETWORK_SEND_DELTA = "lxc:network_send_delta:%s";
 }

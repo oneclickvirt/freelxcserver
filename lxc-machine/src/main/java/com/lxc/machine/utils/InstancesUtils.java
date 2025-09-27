@@ -5,7 +5,6 @@ import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.lxc.common.core.domain.dto.ShellDto;
-import com.lxc.common.enums.LxcStatus;
 import com.lxc.common.utils.JsonUtils;
 import com.lxc.common.utils.ShellUtils;
 import com.lxc.common.utils.StringUtils;
@@ -30,7 +29,8 @@ import org.relxd.lxd.builders.SourceConfigBuilder;
 import org.relxd.lxd.model.*;
 
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Slf4j
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
@@ -84,11 +84,9 @@ public class InstancesUtils {
             String operation = actualCreateInstancesResponse.getOperation();
             if (!StringUtils.isEmpty(operation)) {
                 String operationId = operation.split("/")[operation.split("/").length - 1];
-//                BackgroundOperationResponse operationsUUID = this.operationsApi.getOperationsUUID(operationId, null, null);
-//                log.info("Create Instance Operation Response >>>>>>>>>> " + operationsUUID);
+                BackgroundOperationResponse operationsUUID = this.operationsApi.getOperationsUUID(operationId, null, null);
+                log.info("Create Instance Operation Response >>>>>>>>>> " + operationsUUID);
             }
-//            assertTrue((Objects.equals(actualCreateInstancesResponse.getStatusCode(), 200)) || Objects.equals(actualCreateInstancesResponse.getStatusCode(), 100));
-
         } catch (ApiException e) {
             log.error("LXD API Exception: " + e.getMessage());
             log.error("HTTP Status Code: " + e.getCode());
@@ -97,66 +95,7 @@ public class InstancesUtils {
         }
     }
 
-// 原方法返回类型从 void 改为 CompletableFuture<Void>，支持异步结果监听
-public CompletableFuture<Void> postInstancesAsync(LxcLxc lxc, LxcSuperLxc superLxc, LxcApplyBo lxcApplyBo) {
-    // 从 superLxc 获取目标节点（假设存在该字段，解决 target 为 null 的问题）
-    String target = null;
-    final String architecture = "x86_64";
-    final String type = "container";
-    final String nameOfContainer = lxc.getChildName();
-    final String superLxcIp = superLxc.getIp(); // 新增：宿主机IP用于日志
 
-    // 原有参数准备逻辑（未修改）
-    SourceConfigBuilder sourceConfigBuilder = prepareSourceConfigBuilder(superLxc, lxcApplyBo.getMirrorImage());
-    DevicesRoot devicesRoot = prepareDevicesRoot(superLxc);
-    InstanceConfigBuilder configBuilder = prepareInstanceConfigBuilder(superLxc);
-    List<String> profiles = new ArrayList<>();
-    profiles.add("default");
-    CreateInstancesRequest createInstancesRequest = populateCreateInstancesRequest(
-        devicesRoot,
-        sourceConfigBuilder.asMap(),
-        type,
-        profiles,
-        architecture,
-        nameOfContainer,
-        configBuilder.asMap(),
-        false
-    );
-
-    // 使用 CompletableFuture 异步调用 LXD API（关键修改：异常传播和日志增强）
-    return CompletableFuture.supplyAsync(() -> {
-        try {
-            log.info("开始异步创建容器[{}]（宿主机IP: {}）", nameOfContainer, superLxcIp);
-            return this.instancesApi.postInstances(target, createInstancesRequest);
-        } catch (ApiException e) {
-            // 日志新增容器名和宿主机IP，便于排查
-            log.error("容器[{}]（宿主机IP: {}）创建失败，LXD API异常: {}",
-                nameOfContainer, superLxcIp, e.getMessage());
-            log.error("HTTP状态码: {}, 响应体: {}", e.getCode(), e.getResponseBody());
-            throw new RuntimeException("容器创建失败", e); // 向上传播异常
-        }
-    }).thenAccept(response -> {
-        // 处理创建成功/失败状态（新增状态更新逻辑）
-        if (Objects.equals(response.getStatusCode(), 200) || Objects.equals(response.getStatusCode(), 100)) {
-            log.info("容器[{}]（宿主机IP: {}）创建成功，响应: {}",
-                nameOfContainer, superLxcIp, response);
-            lxc.setLxcStatus(LxcStatus.RUNNING.getCode()); // 状态更新为运行中
-        } else {
-            log.error("容器[{}]（宿主机IP: {}）创建失败，状态码: {}",
-                nameOfContainer, superLxcIp, response.getStatusCode());
-            lxc.setLxcStatus(LxcStatus.FAILED_TO_CREATE.getCode()); // 状态更新为失败
-        }
-        // 持久化状态到数据库（假设通过 Spring 上下文获取 LxcLxcService）
-        SpringUtils.getBean(ILxcLxcService.class).updateById(lxc);
-    }).exceptionally(ex -> {
-        // 处理未捕获异常（新增状态更新逻辑）
-        log.error("容器[{}]（宿主机IP: {}）创建最终失败: {}",
-            nameOfContainer, superLxcIp, ex.getMessage());
-        lxc.setLxcStatus(LxcStatus.FAILED_TO_CREATE.getCode());
-        SpringUtils.getBean(ILxcLxcService.class).updateById(lxc);
-        return null;
-    });
-}
     /**
      * 封装RootLimit
      */
@@ -211,8 +150,10 @@ public CompletableFuture<Void> postInstancesAsync(LxcLxc lxc, LxcSuperLxc superL
     public static RootLimit prepareRootLimit(LxcSuperLxc superLxc) {
         RootLimit rootLimit = JsonUtils.parseObject(superLxc.getRootLimits(), RootLimit.class);
         assert rootLimit != null;
-        rootLimit.setSize(superLxc.getDiskLimit() + "GB");
-        rootLimit.setLimitsMax(superLxc.getDiskLimit() + "GB");
+//        rootLimit.setSize(superLxc.getDiskLimit() + "GB");
+//        rootLimit.setLimitsMax(superLxc.getDiskLimit() + "GB");
+        rootLimit.setSize(superLxc.getDiskLimit());
+        rootLimit.setLimitsMax(superLxc.getDiskLimit());
         /*"root": {
             "pool": "default",
             "size": "1GB",
@@ -268,7 +209,30 @@ public CompletableFuture<Void> postInstancesAsync(LxcLxc lxc, LxcSuperLxc superL
         if (!instanceConfigBuilder.alreadyBound("security.nesting")) {
             instanceConfigBuilder.setSecurityNesting(true);
         }
-        instanceConfigBuilder.setLimitsMemory(superLxc.getMemoryLimit() + "MiB");
+        if (!StringUtils.isEmpty(superLxc.getMemoryLimit())) {
+            // 将内存数值+单位正则分割开来
+            String memoryLimitStr = superLxc.getMemoryLimit();
+            Pattern pattern = Pattern.compile("(\\d+)(\\D+)"); // 捕获数字(\\d+)和单位(\\D+)
+            Matcher matcher = pattern.matcher(memoryLimitStr);
+            if (!matcher.matches()) {
+                throw new RuntimeException("内存限制格式错误: " + memoryLimitStr + "（正确格式如：2GB、512MB）");
+            }
+            String memoryValue = matcher.group(1); // 提取数字部分（第一组）
+            String memoryUnit = matcher.group(2); // 提取单位部分（第二组）
+
+            if (memoryUnit.equals("TB")) {
+                instanceConfigBuilder.setLimitsMemory(memoryValue + "TiB");
+            } else if (memoryUnit.equals("MB")) {
+                instanceConfigBuilder.setLimitsMemory(memoryValue + "MiB");
+            } else if (memoryUnit.equals("KB")) {
+                instanceConfigBuilder.setLimitsMemory(memoryValue + "KiB");
+            } else if (memoryUnit.equals("GB")) {
+                instanceConfigBuilder.setLimitsMemory(memoryValue + "GiB");
+            }
+        } else {
+            // 默认分配256MB
+            instanceConfigBuilder.setLimitsMemory("256MiB");
+        }
         return instanceConfigBuilder;
     }
 

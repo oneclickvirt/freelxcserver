@@ -90,6 +90,9 @@ public class JavaKeyStoreServiceImpl implements JavaKeyStoreService {
 
         try {
             File file = new File(filePath);
+            // 添加调试信息：打印工作目录和文件绝对路径
+            System.out.println("当前工作目录: " + System.getProperty("user.dir"));
+            System.out.println("密钥库文件绝对路径: " + file.getAbsolutePath());
 
             String osName = System.getProperty("os.name").toLowerCase();
             boolean isWindows = osName.contains("win");

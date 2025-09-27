@@ -371,6 +371,7 @@ public class LxcQueueServiceImpl extends BaseService<LxcQueueMapper, LxcQueue> i
 
         LxcUser tgUser = loginUser.getLxcUser();
         tgUser.setSurplusQuota(tgUser.getSurplusQuota() - 1);
+        loginUser.setLxcUser(tgUser);
         LoginHelper.setLoginUser(loginUser);
         //从开始端口偏移当前小鸡索引
         long sshPort = superLxc.getSshPortStart() + portIndex;

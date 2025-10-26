@@ -325,6 +325,7 @@ public class LxcQueueController extends BaseController {
         if (LxcStatus.FROZEN.getCode().equals(lxcStatusOrigin) || LxcStatus.TRAFFIC_LIMIT.getCode().equals(lxcStatusOrigin)) {
             return R.fail("冻结或流量超限的小鸡不能被重建");
         }
+        lxc.setLastUpdatedStatus(lxc.getLxcStatus());
         lxc.setLxcStatus(LxcStatus.RESETING.getCode());
 
         String keyOfSuperLxc = String.format(CacheNames.LXC_SUPER_LXC_RESET, lxc.getId());
@@ -367,7 +368,8 @@ public class LxcQueueController extends BaseController {
 //            sleep(1000);
 //        }
 
-        lxc.setLxcStatus(lxcStatusOrigin);
+        // 恢复重建前状态
+        lxc.setLxcStatus(lxc.getLastUpdatedStatus());
         lxc.setUpdateTime(DateUtil.parseDate(DateUtil.now()));
         lxcMapper.updateById(lxc);
 

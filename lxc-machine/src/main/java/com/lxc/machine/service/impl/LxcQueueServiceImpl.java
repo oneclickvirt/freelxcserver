@@ -386,6 +386,7 @@ public class LxcQueueServiceImpl extends BaseService<LxcQueueMapper, LxcQueue> i
             .setPortStart(netStartPort + "")
             .setPortEnd(netStartPort + (superLxc.getNetStep() - 1) + "")
             .setState(1) // 1-占用，0-空闲
+            .setLastUpdatedStatus(isReset ? LxcStatus.RESETING.getCode() : LxcStatus.WAITING_FOR_PROCESS.getCode())
             .setLxcStatus(isReset ? LxcStatus.RESETING.getCode() : LxcStatus.WAITING_FOR_PROCESS.getCode());
         try {
             String lxcPort = LxcConstants.LXD_PORT;

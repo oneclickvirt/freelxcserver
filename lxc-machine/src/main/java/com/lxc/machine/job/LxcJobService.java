@@ -134,11 +134,13 @@ public class LxcJobService {
                             InstancesUtils.target(shellDto.getIp(), LxcConstants.LXD_PORT).execModifySh(shellDto, superLxcVo.getWay());
 
                             LxcLxcBo temp = new LxcLxcBo();
+                            temp.setLastUpdatedStatus(lxc.getLxcStatus());
                             temp.setLxcStatus(LxcStatus.PENDING.getCode()); // 2
                             temp.setId(lxc.getId());
                             lxcService.updateByBoForce(temp);
                         } catch (Exception e) {
                             LxcLxcBo temp = new LxcLxcBo();
+                            temp.setLastUpdatedStatus(lxc.getLxcStatus());
                             temp.setLxcStatus(LxcStatus.FAILED_TO_CREATE.getCode());
                             temp.setId(lxc.getId());
                             lxcService.updateByBoForce(temp);
@@ -273,6 +275,7 @@ public class LxcJobService {
                         if (out.size() == 2 && StringUtils.equals(out.get(0), "true")) {
                             // such as :[true, 71a128da7]
                             LxcLxcBo temp = new LxcLxcBo();
+                            temp.setLastUpdatedStatus(lxc.getLxcStatus());
                             temp.setLxcStatus(LxcStatus.RUNNING.getCode());
                             temp.setId(lxc.getId());
                             temp.setPassword(out.get(1));
@@ -329,6 +332,7 @@ public class LxcJobService {
                             String format = ShellUtils.IF_LXD_WORK; // 判断宿主机上是否安装了lxd/incus
                             List<String> work = ShellUtils.execCmdOutList(format, ShellUtils.getSession(shellDto));
                             LxcLxcBo temp = new LxcLxcBo();
+                            temp.setLastUpdatedStatus(lxc.getLxcStatus());
                             temp.setLxcStatus(LxcStatus.FAILED_TO_CREATE.getCode());
                             temp.setId(lxc.getId());
                             lxcService.updateByBoForce(temp);
@@ -784,6 +788,7 @@ public class LxcJobService {
                                 // 小鸡关机且不能让前端的开机操作响应；
                                 String res = ShellUtils.execCmdAndReturnStatus(ShellDto.builder().ip(superIp).password(superLxc.getPassword()).way(superLxc.getWay()).modifyType("traffic_limit").childName(childName).build());
                                 log.info(res);
+                                lxcLxcVo.setLastUpdatedStatus(lxcLxcVo.getLxcStatus());
                                 lxcLxcVo.setLxcStatus(LxcStatus.TRAFFIC_LIMIT.getCode());
                             }
                         } catch (NumberFormatException e) {

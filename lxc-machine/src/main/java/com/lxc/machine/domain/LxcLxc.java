@@ -88,6 +88,11 @@ public class LxcLxc extends BaseEntity {
     private String lxcStatus;
 
     /**
+     * 小鸡最近更新的状态
+     */
+    private String lastUpdatedStatus;
+
+    /**
      * 小鸡累积使用流量
      */
     private BigDecimal lxcTraffic;

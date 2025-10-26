@@ -21,6 +21,10 @@ public class LxcContainerState {
      */
     Double cpu;
     /**
+     * cpuUsage  cpu使用率
+     */
+    Double cpuUsage;
+    /**
      * 内存使用情况
      */
     Double memory;
@@ -44,4 +48,6 @@ public class LxcContainerState {
      * 时间戳，纳秒级
      */
     Long timestamp;
+
+    String metricType;
 }

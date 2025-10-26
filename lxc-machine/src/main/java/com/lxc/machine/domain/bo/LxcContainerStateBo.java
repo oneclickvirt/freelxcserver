@@ -13,6 +13,10 @@ public class LxcContainerStateBo {
      */
     String containerId;
     /**
+     * 查询的母鸡ip
+     */
+    String superIp;
+    /**
      * 实例名称
      */
     String instancename;

@@ -16,18 +16,6 @@
     </description>
 
     <dependencies>
-        <!-- spring-boot-devtools -->
-<!--        <dependency>-->
-<!--            <groupId>org.springframework.boot</groupId>-->
-<!--            <artifactId>spring-boot-devtools</artifactId>-->
-<!--            <optional>true</optional> &lt;!&ndash; 表示依赖不会传递 &ndash;&gt;-->
-<!--        </dependency>-->
-
-        <!-- Mysql驱动包 -->
-<!--        <dependency>-->
-<!--            <groupId>mysql</groupId>-->
-<!--            <artifactId>mysql-connector-java</artifactId>-->
-<!--        </dependency>-->
         <dependency>
             <groupId>mysql</groupId>
             <artifactId>mysql-connector-java</artifactId>
@@ -116,13 +104,6 @@
             <artifactId>kafka-clients</artifactId>
             <version>2.7.2</version>
         </dependency>
-
-        <!-- incus-api模块 -->
-<!--        <dependency>-->
-<!--            <groupId>com.lxc</groupId>-->
-<!--            <artifactId>incus-api</artifactId>-->
-<!--            <version>4.3.1</version>-->
-<!--        </dependency>-->
     </dependencies>
 
     <build>

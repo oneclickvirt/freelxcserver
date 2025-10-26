@@ -91,7 +91,6 @@ public class LxcLxcServiceImpl extends BaseService<LxcLxcMapper, LxcLxc> impleme
         lqw.last("order by lxc_status,state,super_ip,id desc");
         Page<LxcLxc> page = pageQuery.build();
         Page<LxcLxcVo> result = baseMapper.selectVoPage(page, lqw);
-
         return TableDataInfo.build(result);
     }
 
@@ -238,6 +237,29 @@ public class LxcLxcServiceImpl extends BaseService<LxcLxcMapper, LxcLxc> impleme
         Map<String, LxcSuperLxc> superMap = new HashMap<>();
         ids.forEach(id -> {
             LxcLxc lxcLxc = baseMapper.selectById(id);
+            String superIp = lxcLxc.getSuperIp();
+            if (!superMap.containsKey(superIp)) {
+                LambdaQueryWrapper<LxcSuperLxc> eq = Wrappers.lambdaQuery();
+                eq.eq(LxcSuperLxc::getIp, superIp);
+                LxcSuperLxc lxcSuperLxc = lxcSuperLxcService.getOne(eq);
+                superMap.put(lxcSuperLxc.getIp(), lxcSuperLxc);
+            } else {
+                throw new RuntimeException("该母鸡："+superIp+"不存在");
+            }
+            LxcSuperLxc lxcSuperLxc = superMap.get(superIp);
+            try {
+                String way = lxcSuperLxc.getWay();
+                String operWay = "";
+                if("lxd".equals(way)){
+                    operWay = " lxc";
+                }else{
+                    operWay = " incus";
+                }
+                HostUtils.deleteContainer(lxcLxc, lxcSuperLxc, operWay);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+
             // 删除后更新缓存
             LambdaQueryWrapper<LxcQueue> queueLqw = new LambdaQueryWrapper<>();
             queueLqw.eq(LxcQueue::getLxcId, id);
@@ -258,28 +280,6 @@ public class LxcLxcServiceImpl extends BaseService<LxcLxcMapper, LxcLxc> impleme
             String keyOfApplyVo = String.format(CacheNames.LXC_APPLY_VO, id);
             if((RedisUtils.getCacheObject(keyOfApplyVo)) != null)
                 RedisUtils.deleteObject(keyOfApplyVo);
-
-            String superIp = lxcLxc.getSuperIp();
-            if (!superMap.containsKey(superIp)) {
-                LambdaQueryWrapper<LxcSuperLxc> eq = Wrappers.lambdaQuery();
-                eq.eq(LxcSuperLxc::getIp, superIp);
-                LxcSuperLxc lxcSuperLxc = lxcSuperLxcService.getOne(eq);
-                superMap.put(lxcSuperLxc.getIp(), lxcSuperLxc);
-            }
-            LxcSuperLxc lxcSuperLxc = superMap.get(superIp);
-            try {
-                String way = lxcSuperLxc.getWay();
-                String operWay = "";
-                if("lxd".equals(way)){
-                    operWay = " lxc";
-                }else{
-                    operWay = " incus";
-                }
-
-                HostUtils.deleteContainer(lxcLxc, lxcSuperLxc, operWay);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
         });
         // 删数据库记录
         int i = baseMapper.deleteBatchIds(ids);
@@ -288,8 +288,6 @@ public class LxcLxcServiceImpl extends BaseService<LxcLxcMapper, LxcLxc> impleme
         });
         return i > 0;
     }
-
-
 
     /**
      * 重建时中途删除小鸡，不删缓存信息

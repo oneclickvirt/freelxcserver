@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Map;
 
 public interface ILxcStateService {
-    LxcContainerStateVo getRunningInfo(LxcContainerStateBo lxcContainerStateBo);
+    Map<String, List<LxcContainerStateVo>> getRunningInfo(LxcContainerStateBo lxcContainerStateBo);
     Map<String, List<LxcContainerStateVo>> getRunningInfoList();
 
     Page<LxcUserMonthlyTraffic> getTrafficList(PageQuery pageQuery);

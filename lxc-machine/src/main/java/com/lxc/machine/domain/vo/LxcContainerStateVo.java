@@ -36,4 +36,12 @@ public class LxcContainerStateVo {
      * 时间戳，纳秒级
      */
     Long timestamp;
+    /**
+     * 母鸡mem限制
+     */
+    Double memLimit;
+    /**
+     * 母鸡disk限制
+     */
+    Double diskLimit;
 }

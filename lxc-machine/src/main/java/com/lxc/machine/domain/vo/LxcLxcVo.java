@@ -111,6 +111,13 @@ public class LxcLxcVo {
     private String lxcStatus;
 
     /**
+     * 小鸡最近更新的状态
+     */
+    @ExcelProperty(value = "小鸡最近更新的状态")
+    @ExcelDictFormat(dictType = "last_updated_status")
+    private String lastUpdatedStatus;
+
+    /**
      * 小鸡累积使用流量
      */
     @ExcelProperty(value = "流量使用量")

@@ -171,6 +171,7 @@ public class LxcLxcController extends BaseController {
     public TableDataInfo<LxcLxcVo> list(LxcLxcBo bo, PageQuery pageQuery) {
         TableDataInfo<LxcLxcVo> pageList = lxcLxcService.queryPageList(bo, pageQuery);
         pageList.getRows().parallelStream().forEach(lxcLxcVo -> {
+
             QueryWrapper<LxcQueue> queryWrapper = new QueryWrapper<>();
 //            queryWrapper.select("tg_id")
 //                .eq("lxc_id", lxcLxcVo.getId())

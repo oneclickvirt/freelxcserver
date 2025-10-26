@@ -1,12 +1,30 @@
-package text;
+package test;
 
 
 import cn.hutool.crypto.symmetric.AES;
 import org.junit.Test;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.charset.Charset;
 
 public class textBase64 {
+
+    @Test
+    public void test02() {
+//        BigDecimal bigDecimal = new BigDecimal("13834.345");
+//        BigDecimal bigDecimal1 = new BigDecimal("123456.33");
+//        int scale = bigDecimal1.scale();
+//        System.out.println(scale);
+//        System.out.println(bigDecimal1.add(bigDecimal));
+
+        BigDecimal number = new BigDecimal("123.456789");
+        BigDecimal roundedNumber = number.setScale(2, RoundingMode.HALF_UP);
+        System.out.println(roundedNumber); // 输出：123.46
+        System.out.printf("%.2f%n", number); // 输出：123.46
+        System.out.println(String.format("%.2f", number)); // 输出：123.46
+    }
+
     @Test
     public void test01() {
         String originStr = "ZJune147258";

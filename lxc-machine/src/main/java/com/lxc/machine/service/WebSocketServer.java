@@ -2,15 +2,13 @@ package com.lxc.machine.service;
 
 import com.lxc.common.core.domain.model.LoginUser;
 import com.lxc.common.helper.LoginHelper;
-import org.springframework.stereotype.Component;
 
 import javax.websocket.*;
-import javax.websocket.server.ServerEndpoint;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-@Component
-@ServerEndpoint("/ws/container-data")
+//@Component
+//@ServerEndpoint("/ws/container-data")
 public class WebSocketServer {
     public final static Map<String, Session> sessionPools = new ConcurrentHashMap<>();
     @OnMessage

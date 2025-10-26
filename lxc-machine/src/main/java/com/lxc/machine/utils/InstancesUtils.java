@@ -751,6 +751,8 @@ public class InstancesUtils {
             BackgroundOperationResponse response = instancesApi.getInstancesByNameState(instancename, null, null);
 //            log.info("容器[{}]状态: {}\n", instancename, response);
             LxcContainerState lxcContainerState = getLxcContainerState(instancename, response);
+            // network=send+revc
+            lxcContainerState.setNetwork(lxcContainerState.getSend() + lxcContainerState.getRecv());
             return lxcContainerState;
         } catch (ApiException e) {
             throw new RuntimeException(e);
@@ -765,9 +767,9 @@ public class InstancesUtils {
         lxcContainerState.setTimestamp(System.currentTimeMillis() * 1000); // 记录时间戳，单位(ns)；统一采用获取到数据后的建立对象后的该事件点
         lxcContainerState.setInstancename(instancename);
         for (Map.Entry<String, Object> entry : entries) {
-//            System.out.println("\"" + entry.getKey() + "\":" + entry.getValue());
             if (entry.getKey().equals("cpu")) {
                 JSONObject cpuJson = JSONUtil.parseObj(entry.getValue().toString());
+//                System.out.println("oldCpu:" + Double.parseDouble(cpuJson.get("usage").toString()));
                 lxcContainerState.setCpu(Double.parseDouble(cpuJson.get("usage").toString()));
             }
             if (entry.getKey().equals("memory")) {

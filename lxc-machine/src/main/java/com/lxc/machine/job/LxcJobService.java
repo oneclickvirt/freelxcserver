@@ -1,5 +1,6 @@
 package com.lxc.machine.job;
 
+import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.lxc.common.constant.CacheNames;
@@ -76,7 +77,6 @@ public class LxcJobService {
                 .eq("lxc_status", LxcStatus.RESETING.getCode())     // 0
                 .orderBy(true, true, "create_time")
         );
-//        XxlJobHelper.log("处于WAITING_FOR_PROCESS未初始化状态的小鸡有：{}个", lxcWaitngList.size());
         lxcWaitngList.stream()
             .collect(Collectors.groupingBy(LxcLxcVo::getSuperIp))
             .forEach(
@@ -251,7 +251,24 @@ public class LxcJobService {
                         }
                         // 判断小鸡容器和日志文件是否创建，如果存在，会返回true和小鸡密码
                         List<String> out = ShellUtils.execCmdOutList(createCommand, ShellUtils.getSession(shellDto));
-                        System.out.println("容器和日志文件创建成功，容器密码同步到数据库：\n" + out.toString());
+                        // 设置重新执行modify.sh次数
+                        int cnt = 1;
+                        while (out.contains("false") && cnt <= 3) {
+                            System.out.println("容器和日志文件创建失败：" + out.toString() + ", 重新执行modify.sh的方法");
+                            LxcSuperLxcVo superLxcVo = BeanCopyUtils.copy(superLxc, LxcSuperLxcVo.class);
+                            ShellDto redoModify = LxcQueueServiceImpl.prepareCreateShellDto(superLxcVo, lxc);
+                            // 重新执行modify.sh的次数
+                            cnt++;
+                            InstancesUtils.target(redoModify.getIp(), LxcConstants.LXD_PORT).execModifySh(redoModify, way);
+                            try {
+                                Thread.sleep(10000); // 等待10秒，确保modify.sh执行完成，再判断容器和日志文件是否创建成功
+                                out = ShellUtils.execCmdOutList(createCommand, ShellUtils.getSession(shellDto));
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
+
+                        }
+                        System.out.println("容器和日志文件创建成功，容器密码同步到数据库：" + out.toString());
                         // 这里获取不到小鸡密码也会导致最后创建失败
                         if (out.size() == 2 && StringUtils.equals(out.get(0), "true")) {
                             // such as :[true, 71a128da7]
@@ -311,14 +328,16 @@ public class LxcJobService {
                         } else {
                             String format = ShellUtils.IF_LXD_WORK; // 判断宿主机上是否安装了lxd/incus
                             List<String> work = ShellUtils.execCmdOutList(format, ShellUtils.getSession(shellDto));
+                            LxcLxcBo temp = new LxcLxcBo();
+                            temp.setLxcStatus(LxcStatus.FAILED_TO_CREATE.getCode());
+                            temp.setId(lxc.getId());
+                            lxcService.updateByBoForce(temp);
                             if (work.isEmpty()) {
-                                LxcLxcBo temp = new LxcLxcBo();
-                                temp.setLxcStatus(LxcStatus.FAILED_TO_CREATE.getCode());
-                                temp.setId(lxc.getId());
-                                lxcService.updateByBoForce(temp);
                                 XxlJobHelper.log("ID:{}  {}创建失败  {},原因是:宿主机上找不到lxd/incus服务", lxc.getId(), childName, format);
                             } else {
-                                XxlJobHelper.log("ID:{}  {}还在创建中", lxc.getId(), childName);
+
+                                System.out.println("ID:" + lxc.getId() + childName + "已重试了三次创建脚本，创建失败");
+                                XxlJobHelper.log("ID:{}  {}已重试了三次创建脚本，创建失败", lxc.getId(), childName);
                             }
                         }
                     } catch (Exception e) {
@@ -336,7 +355,7 @@ public class LxcJobService {
     }
 
     /**
-     * 处理过期的母鸡
+     * 处理过期的母鸡，包括母鸡到期，母鸡上并没有容器，先给个中间状态，不要一直获取状态
      */
     @XxlJob("handleExpiredSuperLxc")
     public void handleExpiredSuperLxc() {
@@ -376,6 +395,73 @@ public class LxcJobService {
                 throw new RuntimeException(e);
             }
         });
+        // 处理正常的母鸡
+        List<LxcSuperLxc> runningSuperLxcList = lxcSuperLxcService.list(new QueryWrapper<LxcSuperLxc>().eq("super_status", "1"));
+        LxcSuperLxc curSuperLxc = new LxcSuperLxc();
+        try {
+            for (LxcSuperLxc superLxc : runningSuperLxcList) {
+                curSuperLxc = superLxc;
+                ShellDto shellDto = ShellDto.builder()
+                    .ip(superLxc.getIp())
+                    .sshPort(Integer.valueOf(superLxc.getSshPort()))
+                    .username("root")
+                    .password(superLxc.getPassword())
+                    .way(superLxc.getWay())
+                    .build();
+                String format = ShellUtils.IF_LXD_WORK;
+                List<String> work = ShellUtils.execCmdOutList(format, ShellUtils.getSession(shellDto));
+                if (work.isEmpty()) {
+                    System.out.println("宿主机上找不到lxd/incus服务");
+                    XxlJobHelper.log(" {},宿主机上找不到lxd/incus服务", format);
+                    setErrorContainers(superLxc, "noService");
+                } else {
+                    // 虽然有lxd/incus服务，但是容器列表不含数据库中的容器
+                    setErrorContainers(superLxc, "noContainer");
+                }
+            }
+        } catch (Exception e) {
+            // 连接不到的宿主机，先将所有容器标记为已销毁
+            setErrorContainers(curSuperLxc, "error");
+            XxlJobHelper.log("该母鸡ssh密码错误或不存在:" + e);
+            throw new RuntimeException("该母鸡ssh密码错误或不存在", e);
+        }
+    }
+
+    private void setErrorContainers(LxcSuperLxc superLxc, String type) {
+        String status = "";
+        List<String> instancesList = new ArrayList<>();
+        if ("noContainer".equals(type)) {
+            try {
+                BackgroundOperationResponse allInstancesBase = lxcQueueService.getAllInstancesBase(superLxc.getIp());
+                Object metadata = allInstancesBase.getMetadata();
+                instancesList = JSONUtil.parseArray(JSONUtil.toJsonStr(metadata)).toList(String.class);
+            } catch (Exception e) {
+                XxlJobHelper.log(e);
+                System.out.println("宿主机" + superLxc.getIp() + "获取容器列表失败，请求超时");
+            }
+        }
+        List<LxcLxcVo> lxcList = lxcService.getLxcList(new QueryWrapper<LxcLxc>().eq("super_ip", superLxc.getIp()));
+        if ("noService".equals(type)) {
+            status = LxcStatus.DESTROYED.getCode();
+        }
+        for (LxcLxcVo lxcVo : lxcList) {
+            if (instancesList.isEmpty() || !instancesList.contains(lxcVo.getChildName())) {
+                // 宿主机中没有该容器，标记为已销毁
+                status = LxcStatus.DESTROYED.getCode();
+            } else {
+                // 宿主机中存在该容器，标记为上次被修改时的状态
+                status = lxcVo.getLastUpdatedStatus();
+            }
+            LxcLxcBo temp = new LxcLxcBo();
+            if (!LxcStatus.DESTROYED.getCode().equals(lxcVo.getLxcStatus())) {
+                // 除了销毁外，其他的状态再机器恢复之后都是有意义的，不能更新到last_updated_status中
+                temp.setLastUpdatedStatus(lxcVo.getLxcStatus());
+            }
+            temp.setLxcStatus(status);
+            temp.setId(lxcVo.getId());
+            lxcService.updateByBoForce(temp);
+            System.out.println("ID为" + lxcVo.getId() + " 的容器原状态为" + lxcVo.getLastUpdatedStatus() + "，当前状态为" + status);
+        }
     }
 
     /**

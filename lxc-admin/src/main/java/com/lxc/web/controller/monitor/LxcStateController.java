@@ -38,9 +38,9 @@ public class LxcStateController {
      * 每5s轮询获取容器运行状态信息，前端展示部分返回，流量信息更新数据库
      * @return
      */
-    @GetMapping("/instanceInfo")
-    public R<LxcContainerStateVo> getInfo(LxcContainerStateBo lxcContainerStateBo) {
-        LxcContainerStateVo lxcContainerStateVo = stateService.getRunningInfo(lxcContainerStateBo);
+    @GetMapping("/updateInstanceInfo")
+    public R<Map<String, List<LxcContainerStateVo>>> getInfo(LxcContainerStateBo lxcContainerStateBo) {
+        Map<String, List<LxcContainerStateVo>> lxcContainerStateVo = stateService.getRunningInfo(lxcContainerStateBo);
         return R.ok(lxcContainerStateVo);
     }
 

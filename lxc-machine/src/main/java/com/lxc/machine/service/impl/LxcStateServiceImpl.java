@@ -21,6 +21,7 @@ import com.lxc.machine.service.ILxcSuperLxcService;
 import com.lxc.machine.utils.CommonUtils;
 import com.lxc.machine.utils.InstancesUtils;
 import lombok.extern.slf4j.Slf4j;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -32,6 +33,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @Slf4j
@@ -43,17 +45,62 @@ public class LxcStateServiceImpl implements ILxcStateService {
     @Autowired
     private LxcUserMonthlyTrafficMapper lxcUserMonthlyTrafficMapper;
 
+    // 最近一次采样时间记录
+    private Map<String, Map<String, Long>> lastSampleTimes = new ConcurrentHashMap<>();
+
+    // 指标变化阈值（超过此值才认为需要更新）
+    private static final Map<String, Double> METRIC_CHANGE_THRESHOLDS = new HashMap<>();
+    static {
+        METRIC_CHANGE_THRESHOLDS.put("cpuUsage", 1.0);     // CPU变化超过1%才更新
+        METRIC_CHANGE_THRESHOLDS.put("memUsage", 1048576.0);     // 内存变化超过1MB才更新
+        METRIC_CHANGE_THRESHOLDS.put("network", 10240.0);  // 网络变化超过10KB才更新
+        METRIC_CHANGE_THRESHOLDS.put("disk", 1048576.0);   // 磁盘变化超过1MB才更新
+    }
+
+    /**
+     * 判断指标变化是否足够大，需要传输更新
+     */
+    public static boolean needUpdate(LxcContainerState metric, String metricType, double oldValue) {
+        Double newValue = 0.0;
+        switch (metricType) {
+            case "cpuUsage":
+                newValue = metric.getCpu();
+                break;
+            case "memUsage":
+                newValue = metric.getMemory();
+                break;
+            case "disk":
+                newValue = metric.getDisk();
+                break;
+            case "network":
+                newValue = metric.getNetwork();
+                break;
+            default:
+                break;
+        }
+        // 数值类指标根据阈值判断
+        Double threshold = METRIC_CHANGE_THRESHOLDS.get(metricType);
+        if (threshold == null) {
+            return true;  // 未知指标默认需要更新
+        }
+        return Math.abs(newValue - oldValue) >= threshold;
+    }
+
     /**
      * 获取容器运行状态信息，更新每个用户流量使用情况（这个要异步，不然用户或容器数量多时，管理员查看到的信息）
-     *
+     * todo
      * 按照lxcContainerStateBo提供的tgId、containerId、instancename查询，减轻返回数据的压力，每次只查询一页的数据
+     *
      * @return
      */
     @Override
-    public LxcContainerStateVo getRunningInfo(LxcContainerStateBo lxcContainerStateBo) {
-
-
-        return null;
+    public Map<String, List<LxcContainerStateVo>> getRunningInfo(LxcContainerStateBo lxcContainerStateBo) {
+        List<LxcSuperLxc> updateLxcSuperLxc = superLxcService.list(new QueryWrapper<LxcSuperLxc>().eq("ip", lxcContainerStateBo.getSuperIp()));
+        Map<String, List<LxcContainerStateVo>> map = new HashMap<>();
+        if (!updateLxcSuperLxc.isEmpty()) {
+            map = getRunningInfoForSuperLxcList(updateLxcSuperLxc);
+        }
+        return map;
     }
 
     /**
@@ -64,6 +111,12 @@ public class LxcStateServiceImpl implements ILxcStateService {
     @Override
     public Map<String, List<LxcContainerStateVo>> getRunningInfoList() {
         List<LxcSuperLxc> aliveLxcSuperLxcList = superLxcService.getAliveLxcSuperLxcList();
+        Map<String, List<LxcContainerStateVo>> map = getRunningInfoForSuperLxcList(aliveLxcSuperLxcList);
+        return map;
+    }
+
+    @NotNull
+    private Map<String, List<LxcContainerStateVo>> getRunningInfoForSuperLxcList(List<LxcSuperLxc> aliveLxcSuperLxcList) {
         Map<String, List<LxcContainerStateVo>> map = new HashMap<>();
         // 1、查询所有可开小鸡的母鸡
         for (LxcSuperLxc superLxc : aliveLxcSuperLxcList) {
@@ -85,7 +138,7 @@ public class LxcStateServiceImpl implements ILxcStateService {
                 LxcContainerState instancesByNameState = InstancesUtils.target(superIp, LxcConstants.LXD_PORT).getInstancesByNameState(childName);
                 // 4、流量情况要更新到redis【mysql的更新会通过后台任务更新】
                 if (instancesByNameState != null) {
-                    System.out.println("instancesByNameState:" + instancesByNameState);
+//                    System.out.println("instancesByNameState:" + instancesByNameState);
                     // 3、将获取到的信息推送到前端 其中流量部分更新到数据库，用于每日统计以及每月统计
                     // cpu使用率计算方法： 单位时间内cpu使用的时间，容器信息记录的cpuUsage是创建以来cpu使用的纳秒数， (当前纳秒数-上一次记录的纳秒数)/间隔的记录时间
                     Double cpu = instancesByNameState.getCpu();
@@ -94,14 +147,25 @@ public class LxcStateServiceImpl implements ILxcStateService {
                     BigDecimal recv = new BigDecimal(instancesByNameState.getRecv());
                     BigDecimal send = new BigDecimal(instancesByNameState.getSend());
                     BigDecimal network = recv.add(send);
+                    // needUpdate的oldNetwork是上一次记录的network，单位是字节
+                    BigDecimal oldNetworkObj = RedisUtils.getCacheObject(String.format(CacheNames.LXC_NETWORK_USAGE, containerId));
+                    Double oldNetwork = 0.0;
+                    if (null != oldNetworkObj) {
+                        oldNetwork = oldNetworkObj.doubleValue();
+                    }
                     // ⭐流量更新到redis
-                    updateTraffic2Redis(containerId, network, recv, send);
+                    if (needUpdate(instancesByNameState, "network", oldNetwork)) {
+                        updateTraffic2Redis(containerId, network, recv, send);
+                    }
                     // 计算cpu使用率
                     // ⭐⭐⭐容器初次采样，数据库里还没有上一次的记录，要分类讨论，默认取当前采样到的值，前端显示为0%
                     Double cpuUsage = handleCpuUsage(lxcVo, instancesByNameState, cpu);
                     LxcContainerStateVo lxcContainerStateVo = new LxcContainerStateVo();
                     BeanUtils.copyProperties(instancesByNameState, lxcContainerStateVo);
                     lxcContainerStateVo.setCpuUsage(cpuUsage);
+                    // 内存和硬盘限制要根据单位进行转换，默认单位是MB和GB
+                    lxcContainerStateVo.setMemLimit(CommonUtils.unitUnifyToBytes(memoryLimitNum, memoryLimitUnit).doubleValue());
+                    lxcContainerStateVo.setDiskLimit(CommonUtils.unitUnifyToBytes(diskLimitNum, diskLimitUnit).doubleValue());
                     superLxcContainerStateVoList.add(lxcContainerStateVo);
                     map.put(superIp, superLxcContainerStateVoList);
                 } else {
@@ -109,10 +173,10 @@ public class LxcStateServiceImpl implements ILxcStateService {
                     log.info("Running状态下的容器获取不到状态，superIp：{}，childName：{}",superIp,childName);
                     throw new RuntimeException("Running状态下的容器获取不到状态，superIp：" + superIp + "，childName：" + childName);
                 }
+                map.forEach((k,v) -> {
+                    System.out.println(k + "：" + v);
+                });
             }
-            map.forEach((k,v) -> {
-                System.out.println(k + "：" + v);
-            });
         }
         return map;
     }
@@ -123,8 +187,15 @@ public class LxcStateServiceImpl implements ILxcStateService {
         LxcContainerState containerState = new LxcContainerState();
         if (RedisUtils.hasKey(keyOfRunningState)) {
             // 如果redis之前有存cpu使用的纳秒值，那么就可以通过两次的间隔和timestamp之差来求得cpu使用率
-            containerState = RedisUtils.getCacheObject(keyOfRunningState);
-            cpuUsage = (new BigDecimal(cpu).subtract(new BigDecimal(containerState.getCpu()))).divide(new BigDecimal(instancesByNameState.getTimestamp() - containerState.getTimestamp()), 4, RoundingMode.HALF_UP).doubleValue();
+            LxcContainerState oldContainerState = RedisUtils.getCacheObject(keyOfRunningState);
+//            System.out.println("oldContainerState:" + oldContainerState);
+            Double oldCpuUsage = 0.0;
+            Long oldTimestamp = 0L;
+            if (null != oldContainerState) {
+                oldCpuUsage = oldContainerState.getCpu();
+                oldTimestamp = oldContainerState.getTimestamp();
+            }
+            cpuUsage = (new BigDecimal(cpu).subtract(new BigDecimal(oldCpuUsage))).divide(new BigDecimal(instancesByNameState.getTimestamp() - oldTimestamp), 4, RoundingMode.HALF_UP).doubleValue();
         }
         // 将最新采样数据添加到缓存列表中，超时时间设置为一周
         RedisUtils.setCacheObject(keyOfRunningState, instancesByNameState, Duration.ofDays(7L));

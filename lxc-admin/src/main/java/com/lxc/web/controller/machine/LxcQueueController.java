@@ -327,11 +327,6 @@ public class LxcQueueController extends BaseController {
         }
         lxc.setLxcStatus(LxcStatus.RESETING.getCode());
 
-        /*queueVo.setPortStart(lxc.getPortStart());
-        queueVo.setPortEnd(lxc.getPortEnd());
-        queueVo.setPassword(lxc.getPassword());
-        queueVo.setIpv6Addr(lxc.getIpv6Addr());*/
-
         String keyOfSuperLxc = String.format(CacheNames.LXC_SUPER_LXC_RESET, lxc.getId());
         LxcSuperLxc superLxc = RedisUtils.getCacheObject(keyOfSuperLxc);
         if (superLxc == null) {

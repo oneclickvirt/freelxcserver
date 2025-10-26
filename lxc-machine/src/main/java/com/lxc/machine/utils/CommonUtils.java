@@ -29,6 +29,25 @@ public class CommonUtils {
         return flowNum;
     }
 
+    public static BigDecimal unitUnifyToBytes(String numberStr,String unitStr) {
+        // 将kB、MB、GB的单位化成字节
+        BigDecimal flowNum = new BigDecimal(numberStr);
+        switch (unitStr.toLowerCase()) {
+            case "kb":
+                flowNum = flowNum.multiply(new BigDecimal(1024));
+                break;
+            case "mb":
+                flowNum = flowNum.multiply(new BigDecimal(1024*1024));
+                break;
+            case "gb":
+                flowNum = flowNum.multiply(new BigDecimal(1024*1024*1024));
+                break;
+            default:
+                throw new IllegalArgumentException("不支持的单位: " + unitStr);
+        }
+        return flowNum;
+    }
+
     public static BigDecimal numUnit2Decimal(String trafficTotalLimit) {
         String tTLNumberStr = extractNumber(trafficTotalLimit);
         String tTLUnitStr = extractUnit(trafficTotalLimit);

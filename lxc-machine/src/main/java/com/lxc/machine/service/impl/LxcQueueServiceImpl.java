@@ -403,7 +403,7 @@ public class LxcQueueServiceImpl extends BaseService<LxcQueueMapper, LxcQueue> i
             RedisUtils.decrAtomicValue(keyOfUsed);
             throw new RuntimeException(e);
         }
-        // 此时小鸡已经创建完毕，如果是重建的话，会插入一个新的跟原来同名的小鸡，需要添加一个判断，是否存在旧小鸡，若存在就先删掉
+        // 此时小鸡已经创建完毕，如果是重建的话，会插入一个新的跟原来同名的小鸡，需要添加一个判断，是否存在旧小鸡，若存在就先删掉 没有考虑并发的情况
         List<LxcLxcVo> lxcSameChildNameList = lxcService.getLxcList(new QueryWrapper<LxcLxc>().eq("child_name", lxc.getChildName()));
         for (LxcLxcVo lxcSameChildName : lxcSameChildNameList) {
             lxcService.delete(new LambdaQueryWrapper<LxcLxc>().eq(LxcLxc::getId, lxcSameChildName.getId()));

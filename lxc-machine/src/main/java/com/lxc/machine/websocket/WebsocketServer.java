@@ -1,20 +1,17 @@
 package com.lxc.machine.websocket;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import javax.websocket.OnClose;
-import javax.websocket.OnError;
-import javax.websocket.OnMessage;
-import javax.websocket.OnOpen;
-import javax.websocket.Session;
-import javax.websocket.server.ServerEndpoint;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import javax.websocket.*;
+import javax.websocket.server.ServerEndpoint;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
 @Component
-@ServerEndpoint("/websocket1")
+@ServerEndpoint("/ws/container-data")
 public class WebsocketServer {
 
     private static Logger logger = LoggerFactory.getLogger(WebsocketServer.class);

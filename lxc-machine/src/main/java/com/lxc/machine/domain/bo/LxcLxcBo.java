@@ -116,6 +116,12 @@ public class LxcLxcBo extends BaseEntity {
     private String lxcStatus;
 
     /**
+     * 小鸡最近更新的状态
+     */
+    @NotNull(message = "小鸡状态不能为空", groups = {AddGroup.class,EditGroup.class})
+    private String lastUpdatedStatus;
+
+    /**
      * 小鸡累积使用流量
      */
     private BigDecimal lxcTraffic;

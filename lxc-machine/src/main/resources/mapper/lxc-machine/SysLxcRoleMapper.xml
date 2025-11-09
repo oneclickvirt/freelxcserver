@@ -9,13 +9,13 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="roleId" column="role_id"/>
     </resultMap>
     <delete id="deleteByLxcId">
-        delete
-        from sys_lxc_role
+        update sys_lxc_role
+        set is_deleted = 1
         where lxc_id = #{lxcId}
     </delete>
     <delete id="deleteBySuperIp">
-        delete
-        from sys_lxc_role
+        update sys_lxc_role
+        set is_deleted = 1
         where lxc_id in (select a.id from lxc_lxc_and_traffic a where a.super_ip = #{superIp})
     </delete>
 </mapper>

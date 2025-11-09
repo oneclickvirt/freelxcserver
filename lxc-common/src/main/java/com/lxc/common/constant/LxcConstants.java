@@ -1,6 +1,9 @@
 package com.lxc.common.constant;
 
 public interface LxcConstants {
+    // TrafficApiSample 常量
+    int IS_RUNNING_TRUE = 1;
+    int IS_RUNNING_FALSE = 0;
 
 //    String BASE_URL = "https://%s:8443";
     String TG_BOT_TOKEN = "TGBotToken";
@@ -17,6 +20,7 @@ public interface LxcConstants {
 
     String CHAT_ID = "-1001474554890";
 
+    Long DEFAULT_USER_LIMIT_TRAFFIC = 100L * 1024 * 1024 * 1024;   // 默认100G
     /**
      * 小鸡流量限制GB
      */

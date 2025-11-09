@@ -5,10 +5,11 @@ import com.lxc.common.core.validate.AddGroup;
 import com.lxc.common.core.validate.EditGroup;
 import com.lxc.common.core.validate.lxc.LxcAddGroup;
 import com.lxc.common.core.validate.lxc.LxcEditGroup;
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+
+import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.NotNull;
 
 /**
  * 小鸡和用户关联表业务对象 lxc_queue
@@ -73,4 +74,8 @@ public class LxcQueueBo extends BaseEntity {
      * 母鸡Id
      */
     Long superLxcId;
+     /**
+     * 删除标志（0代表存在，1代表删除）
+     */
+    private Integer isDeleted;
 }

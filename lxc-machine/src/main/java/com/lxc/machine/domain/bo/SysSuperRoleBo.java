@@ -2,10 +2,11 @@ package com.lxc.machine.domain.bo;
 
 import com.lxc.common.core.domain.BaseEntity;
 import com.lxc.common.core.validate.EditGroup;
-import java.io.Serializable;
-import javax.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+
+import javax.validation.constraints.NotNull;
+import java.io.Serializable;
 
 /**
  * 母鸡和角色关联业务对象 sys_super_role
@@ -29,6 +30,11 @@ public class SysSuperRoleBo extends BaseEntity implements Serializable {
      */
     @NotNull(message = "角色ID不能为空", groups = {EditGroup.class})
     private Long roleId;
+    /**
+     * 是否删除
+     */
+    @NotNull(message = "是否删除不能为空", groups = {EditGroup.class})
+    private Integer isDeleted;
 
 
 }

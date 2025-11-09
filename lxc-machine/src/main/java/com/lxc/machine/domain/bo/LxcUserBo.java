@@ -1,14 +1,13 @@
 package com.lxc.machine.domain.bo;
 
+import com.lxc.common.core.domain.BaseEntity;
 import com.lxc.common.core.validate.AddGroup;
 import com.lxc.common.core.validate.EditGroup;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import javax.validation.constraints.*;
 
-import java.util.Date;
-
-import com.lxc.common.core.domain.BaseEntity;
+import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.NotNull;
 
 /**
  * lxc用户信息业务对象 lxc_user
@@ -57,5 +56,10 @@ public class LxcUserBo extends BaseEntity {
     @NotNull(message = "会员属性不能为空", groups = { AddGroup.class, EditGroup.class })
     private Long vipType;
 
+    /**
+     * 用户流量月度限额
+     */
+    @NotNull(message = "用户流量月度限额不能为空", groups = { AddGroup.class, EditGroup.class })
+    private Long limitTraffic;
 
 }

@@ -264,7 +264,7 @@ public class LxcLxcServiceImpl extends BaseService<LxcLxcMapper, LxcLxc> impleme
             LambdaQueryWrapper<LxcQueue> queueLqw = new LambdaQueryWrapper<>();
             queueLqw.eq(LxcQueue::getLxcId, id);
             LxcQueue lxcQueue = lxcQueueService.getOne(queueLqw); // 目的是获取到tg_id
-            lxcQueueService.delForceByLxcId(id);
+            lxcQueueService.delForceByLxcId(id); // 逻辑删除
             // 定义缓存 key
             String cacheKey = "lxc:queue:all:" + lxcQueue.getTgId() + ":" + DateUtils.getDate();
             // 尝试从 Redis 中获取缓存数据
@@ -282,11 +282,17 @@ public class LxcLxcServiceImpl extends BaseService<LxcLxcMapper, LxcLxc> impleme
                 RedisUtils.deleteObject(keyOfApplyVo);
         });
         // 删数据库记录
-        int i = baseMapper.deleteBatchIds(ids);
+        List<LxcLxc> entityList = new ArrayList<>();
+        for (Long id : ids) {
+            LxcLxc lxcLxc = baseMapper.selectById(id);
+            lxcLxc.setIsDeleted(1);
+            entityList.add(lxcLxc);
+        }
+        boolean successDelete = baseMapper.updateBatchById(entityList);
         superMap.forEach((k, v) -> {
             lxcSuperLxcService.setFreshCache(v);
         });
-        return i > 0;
+        return successDelete;
     }
 
     /**
@@ -321,20 +327,24 @@ public class LxcLxcServiceImpl extends BaseService<LxcLxcMapper, LxcLxc> impleme
                 }else{
                     operWay = " incus";
                 }
-//                ShellUtils.execCmdOutList(String.format("lxc stop %1$s && lxc delete %1$s", lxcLxc.getChildName())
-//                    , "root", lxcSuperLxc.getPassword(), lxcSuperLxc.getIp(), 22);
                 HostUtils.deleteContainer(lxcLxc, lxcSuperLxc, operWay);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
         });
         // 删lxc表记录
-        int i = baseMapper.deleteBatchIds(ids);
+        List<LxcLxc> entityList = new ArrayList<>();
+        for (Long id : ids) {
+            LxcLxc lxcLxc = baseMapper.selectById(id);
+            lxcLxc.setIsDeleted(1);
+            entityList.add(lxcLxc);
+        }
+        boolean successDelete = baseMapper.updateBatchById(entityList);
         superMap.forEach((k, v) -> {
             lxcSuperLxcService.setFreshCache(v);
         });
 
-        return i > 0;
+        return successDelete;
     }
 
     @Override

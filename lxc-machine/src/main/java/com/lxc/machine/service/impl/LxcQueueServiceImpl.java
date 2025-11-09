@@ -47,6 +47,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -153,14 +154,20 @@ public class LxcQueueServiceImpl extends BaseService<LxcQueueMapper, LxcQueue> i
     }
 
     /**
-     * 批量删除小鸡和用户关联表
+     * 批量删除小鸡和用户关联表，逻辑删除
      */
     @Override
     public Boolean deleteWithValidByIds(Collection<Long> ids, Boolean isValid) {
         if (isValid) {
             //TODO 做一些业务上的校验,判断是否需要校验
         }
-        return baseMapper.deleteBatchIds(ids) > 0;
+        List<LxcQueue> entityList = new ArrayList<>();
+        for (Long id : ids) {
+            LxcQueue lxcQueue = baseMapper.selectById(id);
+            lxcQueue.setIsDeleted(1);
+            entityList.add(lxcQueue);
+        }
+        return baseMapper.updateBatchById(entityList);
     }
 
     @Override
@@ -407,9 +414,12 @@ public class LxcQueueServiceImpl extends BaseService<LxcQueueMapper, LxcQueue> i
         // 此时小鸡已经创建完毕，如果是重建的话，会插入一个新的跟原来同名的小鸡，需要添加一个判断，是否存在旧小鸡，若存在就先删掉 没有考虑并发的情况
         List<LxcLxcVo> lxcSameChildNameList = lxcService.getLxcList(new QueryWrapper<LxcLxc>().eq("child_name", lxc.getChildName()));
         for (LxcLxcVo lxcSameChildName : lxcSameChildNameList) {
-            lxcService.delete(new LambdaQueryWrapper<LxcLxc>().eq(LxcLxc::getId, lxcSameChildName.getId()));
+            // 逻辑删除
+            lxc.setIsDeleted(1);
+            lxcService.updateById(lxc);
             //删除队列
-            baseMapper.delete(new LambdaQueryWrapper<LxcQueue>().eq(LxcQueue::getLxcId, lxcSameChildName.getId()));
+            LxcQueue lxcQueue = baseMapper.selectQueueByLxcId(lxc.getId());
+            baseMapper.update(lxcQueue, new LambdaQueryWrapper<LxcQueue>().eq(LxcQueue::getLxcId, lxcSameChildName.getId()));
         }
         lxcMapper.insert(lxc);
         LxcQueue queue = new LxcQueue();
@@ -517,9 +527,12 @@ public class LxcQueueServiceImpl extends BaseService<LxcQueueMapper, LxcQueue> i
                 lqwLxcQueueDelete.eq(LxcQueue::getIp, superLxcIp);
                 lqwLxcQueueDelete.eq(LxcQueue::getLxcId, lxcLxc4Queue.getId());
                 // 删lxc_queue表
-                baseMapper.delete(lqwLxcQueueDelete);
+                LxcQueue lxcQueue = baseMapper.selectOne(lqwLxcQueueDelete);
+                lxcQueue.setIsDeleted(1);
+                baseMapper.updateById(lxcQueue);
                 // 删lxc_lxc_and_traffic表
-                lxcMapper.delete(lqwLxcLxcDelete);
+                lxcLxc4Queue.setIsDeleted(1);
+                lxcMapper.updateById(lxcLxc4Queue);
             }
         }
         return usedContainerNums;
@@ -621,8 +634,12 @@ public class LxcQueueServiceImpl extends BaseService<LxcQueueMapper, LxcQueue> i
      */
     @Override
     public int delForceByLxcId(Long lxcId) {
+        // 逻辑删除
+        LxcQueue lxcQueue = new LxcQueue();
+        lxcQueue.setIsDeleted(1);
+
         sysLxcRoleMapper.delete(new QueryWrapper<SysLxcRole>().eq("lxc_id", lxcId));
-        return baseMapper.delete(new QueryWrapper<LxcQueue>().eq("lxc_id", lxcId));
+        return baseMapper.update(lxcQueue, new QueryWrapper<LxcQueue>().eq("lxc_id", lxcId));
     }
 
     /**

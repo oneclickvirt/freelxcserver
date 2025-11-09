@@ -12,13 +12,14 @@ import com.lxc.machine.domain.bo.SysLxcRoleBo;
 import com.lxc.machine.domain.vo.SysLxcRoleVo;
 import com.lxc.machine.mapper.SysLxcRoleMapper;
 import com.lxc.machine.service.ISysLxcRoleService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 小鸡和角色关联Service业务层处理
@@ -131,7 +132,10 @@ public class SysLxcRoleServiceImpl implements ISysLxcRoleService {
      */
     @Override
     public void deleteByLxcId(Long lxcId) {
-        baseMapper.deleteByLxcId(lxcId);
+        SysLxcRole sysLxcRole = new SysLxcRole();
+        sysLxcRole.setLxcId(lxcId);
+        sysLxcRole.setIsDeleted(1);
+        baseMapper.updateById(sysLxcRole);
     }
 
     /**

@@ -548,7 +548,7 @@ public class LxcQueueController extends BaseController {
         }
         lxcMapper.updateBatchById(lxcLxcList);
         // 在前面对queueId进行判断，找不到对应id的记录直接返回错误，这里就不对id进行有效性判断了
-        Boolean aBoolean = lxcQueueService.deleteWithValidByIds(Arrays.asList(ids), true);
+        Boolean aBoolean = lxcQueueService.deleteWithValidByIds(Arrays.asList(ids), true); // 逻辑删除
         if (aBoolean) {
             RedisUtils.deleteKeys(CacheNames.FREE_LXC_LIST + "*");
             RedisUtils.deleteKeys(CacheNames.STATISTICS_LXC_LIST);

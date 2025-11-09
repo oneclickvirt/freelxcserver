@@ -82,6 +82,11 @@ public class LxcLxc extends BaseEntity {
      */
     private Integer state;
 
+     /**
+     * 逻辑删除（0代表存在 1代表删除）
+     */
+    private int isDeleted;
+
     /**
      * 小鸡状态
      */

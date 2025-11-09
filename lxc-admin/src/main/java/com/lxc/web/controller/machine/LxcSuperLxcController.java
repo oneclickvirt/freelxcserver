@@ -22,15 +22,18 @@ import com.lxc.common.utils.redis.RedisUtils;
 import com.lxc.machine.domain.LxcLxc;
 import com.lxc.machine.domain.LxcSuperLxc;
 import com.lxc.machine.domain.SysSuperRole;
+import com.lxc.machine.domain.TrafficSuperLxcRecord;
 import com.lxc.machine.domain.bo.LxcSuperLxcBo;
 import com.lxc.machine.domain.dto.LxcTextDto;
 import com.lxc.machine.domain.vo.LxcCartVo;
 import com.lxc.machine.domain.vo.LxcSuperLxcVo;
 import com.lxc.machine.mapper.LxcLxcMapper;
 import com.lxc.machine.mapper.LxcSuperLxcMapper;
+import com.lxc.machine.mapper.TrafficSuperLxcRecordMapper;
 import com.lxc.machine.service.ILxcSuperLxcService;
 import com.lxc.machine.service.ISysLxcRoleService;
 import com.lxc.machine.service.ISysSuperRoleService;
+import com.lxc.machine.utils.CommonUtils;
 import com.lxc.web.controller.config.ImageSourceConfig;
 import lombok.RequiredArgsConstructor;
 import okhttp3.OkHttpClient;
@@ -44,6 +47,7 @@ import javax.servlet.http.HttpServletResponse;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -64,18 +68,13 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/lxc/superLxc")
 public class LxcSuperLxcController extends BaseController {
-
     private final ILxcSuperLxcService lxcSuperLxcService;
-
     private final LxcSuperLxcMapper superLxcMapper;
-
     private final LxcLxcMapper lxcMapper;
-
     private final ISysLxcRoleService sysLxcRoleService;
-
     private final ISysSuperRoleService sysSuperRoleService;
-
     private final ImageSourceConfig imageSourceConfig;
+    private final TrafficSuperLxcRecordMapper trafficSuperLxcRecordMapper;
 
     @SaCheckPermission("lxc:superLxc:list")
     @GetMapping("/getImageAlias/{way}")
@@ -352,11 +351,19 @@ public class LxcSuperLxcController extends BaseController {
         List<Long> roleIds = bo.getRoleIds();
         // list 转数组
         Long[] roleIdsArr = roleIds.toArray(new Long[0]);
-        Boolean aBoolean = lxcSuperLxcService.insertByBo(bo);
-        if (aBoolean) {
+        Integer addId = lxcSuperLxcService.insertByBo(bo);
+        if (addId > 0) {
             sysSuperRoleService.insertLxcAuth(bo.getId(),roleIdsArr);
+            // 初始化traffic_super_lxc_record
+            TrafficSuperLxcRecord trafficSuperLxcRecord = new TrafficSuperLxcRecord();
+            trafficSuperLxcRecord.setSuperId(addId.longValue());
+            trafficSuperLxcRecord.setUsedTraffic(0L);
+            BigDecimal limit2MB = CommonUtils.numUnit2Decimal(trafficLimit);
+            trafficSuperLxcRecord.setMaxLimit(limit2MB.longValue());
+            trafficSuperLxcRecord.setIsTrafficLimited(0);
+            trafficSuperLxcRecordMapper.insert(trafficSuperLxcRecord);
         }
-        return toAjax(aBoolean ? 1 : 0);
+        return toAjax(addId > 0 ? 1 : 0);
     }
 
     /**

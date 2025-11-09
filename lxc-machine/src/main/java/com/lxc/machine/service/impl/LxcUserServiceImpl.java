@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.lxc.common.constant.LxcConstants;
 import com.lxc.common.core.domain.PageQuery;
 import com.lxc.common.core.domain.entity.LxcUser;
 import com.lxc.common.core.page.TableDataInfo;
@@ -13,12 +14,14 @@ import com.lxc.framework.service.BaseService;
 import com.lxc.machine.domain.bo.LxcUserBo;
 import com.lxc.machine.domain.vo.LxcUserVo;
 import com.lxc.machine.mapper.LxcUserMapper;
+import com.lxc.machine.mapper.UserTrafficRecordMapper;
 import com.lxc.machine.service.ILxcUserService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
 
 /**
  * lxc用户信息Service业务层处理
@@ -31,6 +34,9 @@ import org.springframework.stereotype.Service;
 public class LxcUserServiceImpl extends BaseService<LxcUserMapper,LxcUser> implements ILxcUserService {
 
     private final LxcUserMapper baseMapper;
+    private final UserTrafficRecordMapper userTrafficRecordMapper;
+//    private final ISysDictDataService dictDataService;
+//    private final ISysDictTypeService dictTypeService;
 
     /**
      * 查询lxc用户信息
@@ -88,7 +94,11 @@ public class LxcUserServiceImpl extends BaseService<LxcUserMapper,LxcUser> imple
     public Boolean insertByBo(LxcUserBo bo) {
         LxcUser add = BeanUtil.toBean(bo, LxcUser.class);
         validEntityBeforeSave(add);
+        if (bo.getLimitTraffic() == null) {
+            add.setLimitTraffic(LxcConstants.DEFAULT_USER_LIMIT_TRAFFIC);
+        }
         boolean flag = baseMapper.insert(add) > 0;
+        // 新增用户流量记录
         if (flag) {
             bo.setId(add.getId());
         }

@@ -23,9 +23,6 @@ public class HostUtils {
         if (stopAndDelContainer.contains("false")) {
             throw new Exception("删除容器失败");
         }
-        // 删容器
-//        ShellUtils.execCmdOutList(String.format(operWay + " delete %1$s", lxcLxc.getChildName())
-//            , "root", lxcSuperLxc.getPassword(), lxcSuperLxc.getIp(), 22);
         // 移除初始化日志文件
         List<String> delFileAndLog = ShellUtils.execCmdOutList(String.format("rm -rf %1$s %1$s_init.log", lxcLxc.getChildName()), "root", lxcSuperLxc.getPassword(), lxcSuperLxc.getIp(), 22);
         System.out.println("delFileAndLog: " + delFileAndLog);

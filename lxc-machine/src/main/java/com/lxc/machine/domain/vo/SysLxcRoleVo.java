@@ -30,5 +30,8 @@ public class SysLxcRoleVo {
     @ExcelProperty(value = "角色ID")
     private Long roleId;
 
-
+    /**
+     * 逻辑删除：1-删除，0-存在
+     */
+    private int isDeleted;
 }

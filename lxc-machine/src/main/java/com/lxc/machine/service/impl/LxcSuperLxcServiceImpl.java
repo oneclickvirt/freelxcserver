@@ -18,12 +18,13 @@ import com.lxc.common.utils.StringUtils;
 import com.lxc.common.utils.redis.RedisUtils;
 import com.lxc.framework.service.BaseService;
 import com.lxc.machine.domain.LxcLxc;
-import com.lxc.machine.domain.LxcQueue;
 import com.lxc.machine.domain.LxcSuperLxc;
 import com.lxc.machine.domain.SysSuperRole;
+import com.lxc.machine.domain.bo.LxcLxcBo;
 import com.lxc.machine.domain.bo.LxcQueueBo;
 import com.lxc.machine.domain.bo.LxcSuperLxcBo;
 import com.lxc.machine.domain.vo.LxcCartVo;
+import com.lxc.machine.domain.vo.LxcLxcVo;
 import com.lxc.machine.domain.vo.LxcQueueVo;
 import com.lxc.machine.domain.vo.LxcSuperLxcVo;
 import com.lxc.machine.mapper.LxcSuperLxcMapper;
@@ -35,6 +36,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -128,15 +130,15 @@ public class LxcSuperLxcServiceImpl extends BaseService<LxcSuperLxcMapper, LxcSu
      * 新增母鸡信息
      */
     @Override
-    public Boolean insertByBo(LxcSuperLxcBo bo) {
+    public Integer insertByBo(LxcSuperLxcBo bo) {
         LxcSuperLxc add = BeanUtil.toBean(bo,LxcSuperLxc.class);
         validEntityBeforeSave(add);
-        boolean flag = baseMapper.insert(add) > 0;
-        if (flag) {
+        int insertId = baseMapper.insert(add);
+        if (insertId > 0) {
             setFreshCache(add);
             bo.setId(add.getId());
         }
-        return flag;
+        return insertId;
     }
 
     /**
@@ -168,6 +170,7 @@ public class LxcSuperLxcServiceImpl extends BaseService<LxcSuperLxcMapper, LxcSu
         if (isValid) {
             //TODO 做一些业务上的校验,判断是否需要校验
         }
+        List<LxcSuperLxc> entityList = new ArrayList<>();
         ids.forEach(id -> {
             //删除用于重建时传入的母鸡信息
             String keyOfSuperLxc = String.format(CacheNames.LXC_SUPER_LXC_RESET, id);
@@ -175,15 +178,15 @@ public class LxcSuperLxcServiceImpl extends BaseService<LxcSuperLxcMapper, LxcSu
                 RedisUtils.deleteObject(keyOfSuperLxc);
 
             LxcSuperLxc lxcSuperLxc = baseMapper.selectById(id);
+            lxcSuperLxc.setIsDeleted(1);
+            entityList.add(lxcSuperLxc);
             String superLxcIp = lxcSuperLxc.getIp();
-            sysLxcRoleService.deleteBySuperIp(superLxcIp);
             // 删除后更新缓存
-            LambdaQueryWrapper<LxcQueue> queueLqw = new LambdaQueryWrapper<>();
-            queueLqw.eq(LxcQueue::getIp, superLxcIp);
             LxcQueueBo lxcQueueBo = new LxcQueueBo();
             lxcQueueBo.setIp(superLxcIp);
             List<LxcQueueVo> lxcQueueList = lxcQueueService.queryList(lxcQueueBo);
-            lxcQueueService.delete(new QueryWrapper<LxcQueue>().eq("ip",superLxcIp));
+            lxcQueueBo.setIsDeleted(1);
+            lxcQueueService.updateByBo(lxcQueueBo);
             // 对列表中每一个容器都删除
             for (LxcQueueVo lxcQueueVo : lxcQueueList) {
                 // 定义缓存 key
@@ -195,11 +198,21 @@ public class LxcSuperLxcServiceImpl extends BaseService<LxcSuperLxcMapper, LxcSu
                     redisUtils.deleteObject(cacheKey);
                 }
             }
-            lxcLxcService.delete(new QueryWrapper<LxcLxc>().eq("super_ip",superLxcIp));
-            sysSuperRoleService.delete(new QueryWrapper<SysSuperRole>().eq("super_id",id));
+            LxcLxcBo lxcLxcBo = new LxcLxcBo();
+            lxcLxcBo.setSuperIp(superLxcIp);
+            lxcLxcService.updateByBo(lxcLxcBo);
+            List<LxcLxcVo> lxcLxcList = lxcLxcService.getLxcList(new QueryWrapper<LxcLxc>().eq("super_ip",superLxcIp));
+            lxcLxcList.forEach(lxcLxcVo -> {
+                lxcLxcVo.setIsDeleted(1);
+                lxcLxcService.updateByBo(BeanUtil.toBean(lxcLxcVo,LxcLxcBo.class));
+            });
+            SysSuperRole sysSuperRole = new SysSuperRole();
+            sysSuperRole.setSuperId(id);
+            sysSuperRole.setIsDeleted(1);
+            sysSuperRoleService.updateById(sysSuperRole);
             RedisUtils.deleteKeys(String.format(CacheNames.LXC_SUPER_APPLY_HEAD,lxcSuperLxc.getId()) + "*");
         });
-        return baseMapper.deleteBatchIds(ids) > 0;
+        return baseMapper.updateBatchById(entityList);
     }
 
     /**

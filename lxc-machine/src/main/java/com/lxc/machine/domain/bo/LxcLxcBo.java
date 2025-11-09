@@ -130,5 +130,9 @@ public class LxcLxcBo extends BaseEntity {
      * 网卡
      */
     private String hostInterface;
+     /**
+      * 删除标志（0代表存在，1代表删除）
+      */
+    private Integer isDeleted;
 
 }

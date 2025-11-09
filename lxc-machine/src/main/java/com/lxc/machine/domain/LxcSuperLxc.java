@@ -122,10 +122,12 @@ public class LxcSuperLxc extends BaseEntity {
      * instanceConfig org.relxd.lxd.builders.InstanceConfigBuilder
      */
     private String instanceConfig;
-
-
     /**
      * 镜像配置
      */
     private String sourceConfig;
+    /**
+     * 逻辑删除（0代表存在 1代表删除）
+     */
+     private int isDeleted;
 }

@@ -47,7 +47,10 @@ public class LxcUser extends BaseEntity {
      * 会员属性
      */
     private Long vipType;
-
+    /**
+     * 用户流量月度限额
+     */
+    private Long limitTraffic;
     /**
      * 剩余配额
      */

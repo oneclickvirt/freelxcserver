@@ -17,12 +17,7 @@ import lombok.EqualsAndHashCode;
 @EqualsAndHashCode(callSuper = true)
 @TableName("lxc_queue")
 public class LxcQueue extends BaseEntity {
-
     private static final long serialVersionUID=1L;
-
-    /**
-     *
-     */
     @TableId(value = "id")
     private Long id;
     /**
@@ -52,17 +47,18 @@ public class LxcQueue extends BaseEntity {
 
     @TableField(exist = false)
     private String superTag;
-
     /**
      * 小鸡名称
      */
     @TableField(exist = false)
     private String childName;
-
     /**
      * 小鸡状态
      */
     @TableField(exist = false)
     private String lxcStatus;
-
+    /**
+     * 逻辑删除（0代表存在 1代表删除）
+     */
+     private int isDeleted;
 }

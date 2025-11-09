@@ -104,6 +104,12 @@ public class LxcLxcVo {
     private Integer state;
 
     /**
+     * 逻辑删除：1-删除，0-存在
+     */
+    @ExcelProperty(value = "逻辑删除")
+    private Integer isDeleted;
+
+    /**
      * 小鸡状态
      */
     @ExcelProperty(value = "小鸡状态 1是占用 0是空闲", converter = ExcelDictConvert.class)

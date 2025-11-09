@@ -28,4 +28,8 @@ public class SysSuperRole {
      */
     private Long roleId;
 
+    /**
+     * 逻辑删除：1-删除，0-存在
+     */
+    private int isDeleted;
 }

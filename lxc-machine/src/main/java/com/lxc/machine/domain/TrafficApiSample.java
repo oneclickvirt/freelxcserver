@@ -22,7 +22,7 @@ public class TrafficApiSample {
     // 上次采样的网络流量（字节）
     private Long lastSampledNetwork;
     // 是否运行中
-    private int isRunning;
+    private Boolean isRunning;
     // 更新时间
     private Date updateTime;
 }

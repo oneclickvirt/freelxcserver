@@ -8,6 +8,7 @@ import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.lxc.common.constant.CacheNames;
 import com.lxc.common.constant.LxcConstants;
 import com.lxc.common.core.domain.dto.ShellDto;
+import com.lxc.common.core.domain.entity.LxcUser;
 import com.lxc.common.enums.LxcStatus;
 import com.lxc.common.utils.BeanCopyUtils;
 import com.lxc.common.utils.DateUtils;
@@ -18,13 +19,11 @@ import com.lxc.machine.domain.*;
 import com.lxc.machine.domain.bo.LxcLxcBo;
 import com.lxc.machine.domain.vo.LxcLxcVo;
 import com.lxc.machine.domain.vo.LxcSuperLxcVo;
-import com.lxc.machine.mapper.LxcQueueMapper;
-import com.lxc.machine.mapper.TrafficApiSampleMapper;
-import com.lxc.machine.mapper.TrafficStatsByTimeMapper;
-import com.lxc.machine.mapper.UserContainerTrafficUsedMapper;
+import com.lxc.machine.mapper.*;
 import com.lxc.machine.service.ILxcLxcService;
 import com.lxc.machine.service.ILxcQueueService;
 import com.lxc.machine.service.ILxcSuperLxcService;
+import com.lxc.machine.service.impl.LxcAsyncService;
 import com.lxc.machine.service.impl.LxcQueueServiceImpl;
 import com.lxc.machine.utils.CommonUtils;
 import com.lxc.machine.utils.InstancesUtils;
@@ -60,6 +59,11 @@ public class LxcJobService {
     private final TrafficApiSampleMapper trafficApiSampleMapper;
     private final TrafficStatsByTimeMapper trafficStatsByTimeMapper;
     private final UserContainerTrafficUsedMapper userContainerTrafficUsedMapper;
+    private final UserTrafficRecordMapper userTrafficRecordMapper;
+    private final TrafficSuperLxcRecordMapper trafficSuperLxcRecordMapper;
+    private final LxcUserMapper lxcUserMapper;
+    private final LxcAsyncService lxcAsyncService;
+
     /**
      * 流转数据库内容器状态，执行modify.sh脚本
      */
@@ -477,7 +481,7 @@ public class LxcJobService {
                             trafficApiSample.setRxBytes(rxBytes);
                             trafficApiSample.setTxBytes(txBytes);
                             trafficApiSample.setLastSampledNetwork(networkBytes);
-                            trafficApiSample.setIsRunning(LxcConstants.IS_RUNNING_TRUE);
+                            trafficApiSample.setIsRunning(true);
                             trafficApiSample.setUpdateTime(new Date());
                             trafficApiSampleMapper.insert(trafficApiSample);
                         }
@@ -505,7 +509,7 @@ public class LxcJobService {
         List<List<TrafficApiSample>> result = new ArrayList<>(
             trafficApiSampleMapper.selectList(
                     new QueryWrapper<TrafficApiSample>()
-                        .eq("is_running", LxcConstants.IS_RUNNING_TRUE)
+                        .eq("is_running", true)
                         .between("update_time", startTime, endTime)
                 ).stream()
                 .collect(Collectors.groupingBy(sample -> Arrays.asList(
@@ -515,6 +519,9 @@ public class LxcJobService {
                 ))).values()
         );
         if(!result.isEmpty()) {
+            // 每个容器遍历时将一小时内使用的流量累加，更新到map中，再统一更新到user_container_traffic_used表中
+            Map<String, Long> userPerContainerTrafficUsedMap = new HashMap<>();
+            Map<Long, Long> superIdPerTrafficUsedMap = new HashMap<>();
             for (List<TrafficApiSample> trafficApiSampleList : result) { // 每一组代表一个容器某个小时的采样数据
                 // 取第一个和最后一个作差计算————该做法会导致一个小时最后一次采样和下一个小时第一次采样的流量被忽略，目前不对这部分误差做处理。如果有必要，就以一天或者一个月为单位对这些跨hour的流量进行处理，误差会减小到单位时间的维度
                 TrafficApiSample trafficApiSampleFirst = trafficApiSampleList.get(0);
@@ -531,13 +538,86 @@ public class LxcJobService {
                  * 业务流量记录表（用户-容器-流量处理）——user_container_traffic_used，每小时计算一次，不用版本来控制，在上一个统计表时同时更新，每y-m-d-h根据用户覆盖或更新上去
                  */
                 insertOrUpdateUserContainerTrafficUsedTable(currentTime, superId, containerId, containerName, currentContainerQueue, rxBytes, txBytes);
-                /**
-                 * 用户流量汇总记录表——user_traffic_record
-                 */
-
-                /**
-                 * 宿主机流量汇总记录表——traffic_super_lxc_record
-                 */
+                userPerContainerTrafficUsedMap.put(currentContainerQueue.getTgId(), userPerContainerTrafficUsedMap.getOrDefault(currentContainerQueue.getTgId(), 0L) + rxBytes + txBytes);
+                superIdPerTrafficUsedMap.put(superId, superIdPerTrafficUsedMap.getOrDefault(superId, 0L) + rxBytes + txBytes);
+            }
+            // 更新用户流量记录（核心改造：冻结逻辑异步化）
+            String queryDate = DateUtils.getDate(); // 固定查询日期，传递给异步方法
+            for (Map.Entry<String, Long> entry : userPerContainerTrafficUsedMap.entrySet()) {
+                String tgId = entry.getKey();
+                Long totalUsedTraffic = entry.getValue();
+                UserTrafficRecord userTrafficRecord = userTrafficRecordMapper.selectOne(new LambdaQueryWrapper<UserTrafficRecord>().eq(UserTrafficRecord::getTgId, tgId));
+                Long limitTraffic = userTrafficRecord != null ? userTrafficRecord.getLimitTraffic() : LxcConstants.DEFAULT_USER_LIMIT_TRAFFIC; // DEFAULT_USER_LIMIT_TRAFFIC是默认LxcUser的流量限额
+                boolean isOverLimit = false;
+                if (userTrafficRecord != null) {
+                    // 已存在用户：更新流量和冻结状态
+                    userTrafficRecord.setUsedTraffic(totalUsedTraffic);
+                    isOverLimit = totalUsedTraffic > userTrafficRecord.getLimitTraffic();
+                    userTrafficRecord.setIsTrafficLimited(isOverLimit);
+                    userTrafficRecordMapper.updateById(userTrafficRecord);
+                } else {
+                    // 新用户：创建流量记录（修复原代码空指针 Bug）
+                    LxcUser lxcUser = lxcUserMapper.selectOne(new LambdaQueryWrapper<LxcUser>().eq(LxcUser::getTgId, tgId));
+                    if (lxcUser == null) {
+                        log.warn("无该tg用户记录，跳过创建流量记录，tgId: {}", tgId);
+                        continue;
+                    }
+                    isOverLimit = totalUsedTraffic > limitTraffic;
+                    UserTrafficRecord newUserTrafficRecord = new UserTrafficRecord();
+                    newUserTrafficRecord.setTgId(tgId);
+                    newUserTrafficRecord.setUsedTraffic(totalUsedTraffic);
+                    newUserTrafficRecord.setLimitTraffic(limitTraffic);
+                    newUserTrafficRecord.setIsTrafficLimited(isOverLimit);
+                    userTrafficRecordMapper.insert(newUserTrafficRecord);
+                }
+                if (isOverLimit) {
+                    log.info("新用户流量超限，触发异步冻结，tgId: {}，已用流量: {}，限额: {}",
+                        tgId, totalUsedTraffic, limitTraffic);
+                    lxcAsyncService.freezeUserContainersAsync(tgId, queryDate)
+                        .whenComplete((v, e) -> {
+                            if (e != null) {
+                                log.error("新用户容器冻结异步任务失败，tgId: {}", tgId, e);
+                            }
+                        });
+                }
+            }
+            log.info("当前小时流量统计更新完成，共处理 {} 个用户", userPerContainerTrafficUsedMap.size());
+            // 更新宿主机流量记录
+            for (Map.Entry<Long, Long> entry : superIdPerTrafficUsedMap.entrySet()) {
+                Long superId = entry.getKey();
+                LxcSuperLxc superLxc = lxcSuperLxcService.getOne(new LambdaQueryWrapper<LxcSuperLxc>().eq(LxcSuperLxc::getId, superId));
+                Long totalUsedTraffic = entry.getValue();
+                TrafficSuperLxcRecord trafficSuperLxcRecord = trafficSuperLxcRecordMapper.selectOne(new LambdaQueryWrapper<TrafficSuperLxcRecord>()
+                        .eq(TrafficSuperLxcRecord::getSuperId, superId));
+                Long maxLimit = trafficSuperLxcRecord != null ? trafficSuperLxcRecord.getMaxLimit() : CommonUtils.unitUnifyToBytes(CommonUtils.extractNumber(superLxc.getTrafficTotalLimit()), CommonUtils.extractUnit(superLxc.getTrafficTotalLimit())).divide(new BigDecimal(1024)).longValue(); // 转换为KB
+                boolean isOverLimit = false;
+                if (trafficSuperLxcRecord != null) {
+                    // 已存在用户：更新流量和冻结状态
+                    trafficSuperLxcRecord.setUsedTraffic(totalUsedTraffic);
+                    isOverLimit = totalUsedTraffic > maxLimit;
+                    trafficSuperLxcRecord.setTrafficLimited(isOverLimit);
+                    trafficSuperLxcRecordMapper.updateById(trafficSuperLxcRecord);
+                } else {
+                    // 新用户：创建流量记录（修复原代码空指针 Bug）
+                    LxcSuperLxc lxcSuperLxc = lxcSuperLxcService.getOne(new LambdaQueryWrapper<LxcSuperLxc>().eq(LxcSuperLxc::getId, superId));
+                    if (lxcSuperLxc == null) {
+                        log.warn("无该宿主机记录，跳过创建流量记录，superId: {}", superId);
+                        continue;
+                    }
+                    isOverLimit = totalUsedTraffic > maxLimit;
+                    TrafficSuperLxcRecord newTrafficSuperLxcRecord = new TrafficSuperLxcRecord();
+                    newTrafficSuperLxcRecord.setSuperId(superId);
+                }
+                if (isOverLimit) {
+                    log.info("新用户流量超限，触发异步冻结，superId: {}，已用流量: {}，限额: {}",
+                        superId, totalUsedTraffic, maxLimit);
+                    lxcAsyncService.freezeSuperLxcContainersAsync(superId)
+                        .whenComplete((v, e) -> {
+                            if (e != null) {
+                                log.error("新用户容器冻结异步任务失败，superId: {}", superId, e);
+                            }
+                        });
+                }
             }
         }
     }
@@ -598,7 +678,7 @@ public class LxcJobService {
         }
     }
 
-
+// todo 优化原来的定时任务，因为流量更新的定时任务已经完成了状态变更，也保存上次状态，可以更灵活地应对重建场景
     /**
      * todo 重建小鸡需要跟原小鸡的流量计算区分开来 重建小鸡时会把原来小鸡的信息删除，可能需要留着，方便后面统计流量信息（containerId）
      * 重设重建小鸡前流量超限状态并冻结小鸡
@@ -738,7 +818,7 @@ public class LxcJobService {
 
 
     /**
-     * todo 判断超限的数据要从新表中获取
+     * todo 重构该方法
      * 重置流量超限小鸡，除了解除冻结，还要重新考虑流量计数
      */
     @XxlJob("resetNetExceed")

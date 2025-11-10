@@ -16,5 +16,5 @@ public class TrafficSuperLxcRecord {
     //    限额（字节）
     private Long maxLimit;
     //    是否超出限额
-    private Integer isTrafficLimited;
+    private boolean isTrafficLimited;
 }

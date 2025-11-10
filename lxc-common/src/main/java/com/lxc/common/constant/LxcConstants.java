@@ -1,10 +1,6 @@
 package com.lxc.common.constant;
 
 public interface LxcConstants {
-    // TrafficApiSample 常量
-    int IS_RUNNING_TRUE = 1;
-    int IS_RUNNING_FALSE = 0;
-
 //    String BASE_URL = "https://%s:8443";
     String TG_BOT_TOKEN = "TGBotToken";
     String ENABLE_CHECK_MEMBER = "EnableCheckMember";

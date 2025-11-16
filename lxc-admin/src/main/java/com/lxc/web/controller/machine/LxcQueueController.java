@@ -140,6 +140,7 @@ public class LxcQueueController extends BaseController {
         }
     }*/
 
+    // todo 创建和重建要加上流量统计和变更的逻辑
     @SaCheckPermission("lxc:lxc:all")
     @RateLimiter(count = 3, time = 20, limitType = LimitType.IP)
     @Log(title = "自助领取小鸡", businessType = BusinessType.INSERT)

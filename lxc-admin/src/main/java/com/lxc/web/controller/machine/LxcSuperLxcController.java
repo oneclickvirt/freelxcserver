@@ -360,7 +360,7 @@ public class LxcSuperLxcController extends BaseController {
             trafficSuperLxcRecord.setUsedTraffic(0L);
             BigDecimal limit2MB = CommonUtils.numUnit2Decimal(trafficLimit);
             trafficSuperLxcRecord.setMaxLimit(limit2MB.longValue());
-            trafficSuperLxcRecord.setIsTrafficLimited(0);
+            trafficSuperLxcRecord.setTrafficLimited(false);
             trafficSuperLxcRecordMapper.insert(trafficSuperLxcRecord);
         }
         return toAjax(addId > 0 ? 1 : 0);

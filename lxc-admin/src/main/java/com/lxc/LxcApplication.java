@@ -6,6 +6,7 @@ import org.springframework.boot.context.metrics.buffering.BufferingApplicationSt
 import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.ZoneId;
@@ -19,6 +20,7 @@ import java.util.TimeZone;
 
 @ConfigurationPropertiesScan
 @SpringBootApplication
+@EnableAsync
 public class LxcApplication {
 
     public static void main(String[] args) {

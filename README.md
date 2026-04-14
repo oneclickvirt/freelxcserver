@@ -4,6 +4,10 @@
 
 freelxcserver 是一个基于 Spring Boot 的后端管理与服务平台，采用多模块 Maven 结构，面向 LXC 相关业务、系统管理、任务调度、对象存储、短信能力与监控扩展。
 
+对应的前端代码见：https://github.com/oneclickvirt/freelxcweb
+
+本项目暂不做后续开发维护工作
+
 ## 版本与运行环境
 
 - 当前版本：4.3.1

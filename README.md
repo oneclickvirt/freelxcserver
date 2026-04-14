@@ -1,164 +1,115 @@
-## 平台简介
-[![码云Gitee](https://gitee.com/JavaLionLi/lxc-vue-plus/badge/star.svg?theme=blue)](https://gitee.com/JavaLionLi/lxc-vue-plus)
-[![GitHub](https://img.shields.io/github/stars/JavaLionLi/lxc-vue-plus.svg?style=social&label=Stars)](https://github.com/JavaLionLi/lxc-vue-plus)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://gitee.com/JavaLionLi/lxc-vue-plus/blob/master/LICENSE)
-[![使用IntelliJ IDEA开发维护](https://img.shields.io/badge/IntelliJ%20IDEA-提供支持-blue.svg)](https://www.jetbrains.com/?from=lxc-vue-plus)
-<br>
-[![lxc-vue-plus](https://img.shields.io/badge/RuoYi_Vue_Plus-4.3.1-success.svg)](https://gitee.com/JavaLionLi/lxc-vue-plus)
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-2.7-blue.svg)]()
-[![JDK-8+](https://img.shields.io/badge/JDK-8-green.svg)]()
-[![JDK-11](https://img.shields.io/badge/JDK-11-green.svg)]()
+# freelxcserver
 
-> lxc-vue-plus 是重写 RuoYi-Vue 针对 `分布式集群` 场景全方位升级(不兼容原框架)
+## 项目简介
 
-> 项目代码、文档 均开源免费可商用 遵循开源协议在项目中保留开源协议文件即可<br>
-> 活到老写到老 为兴趣而开源 为学习而开源 为让大家真正可以学到技术而开源
+freelxcserver 是一个基于 Spring Boot 的后端管理与服务平台，采用多模块 Maven 结构，面向 LXC 相关业务、系统管理、任务调度、对象存储、短信能力与监控扩展。
 
-> 系统演示: [传送门](https://gitee.com/JavaLionLi/lxc-vue-plus/wikis/系统演示?sort_id=4836388)
+## 版本与运行环境
 
-| 功能介绍     | 使用技术                | 文档地址                                                                                              | 特性注意事项                     |
-|----------|---------------------|---------------------------------------------------------------------------------------------------|----------------------------|
-| 当前框架     | lxc-vue-plus      | [lxc-vue-plus文档](https://gitee.com/JavaLionLi/lxc-vue-plus/wikis/pages)                       | 重写RuoYi-Vue全方位升级(不兼容原框架)   |
-| 微服务分支    | RuoYi-Cloud-Plus    | [微服务分支地址](https://gitee.com/JavaLionLi/RuoYi-Cloud-Plus)                                          | 重写RuoYi-Cloud全方位升级(不兼容原框架) |
-| 单体分支     | lxc-vue-plus-fast | [fast分支地址](https://gitee.com/JavaLionLi/lxc-vue-plus/tree/fast/)                                | 单体应用结构                     |
-| Vue3分支   | lxc-vue-plus-UI   | [UI地址](https://gitee.com/JavaLionLi/lxc-vue-plus-UI)                                            | 由于组件还未完善 仅供学习              |
-| 原框架      | RuoYi-Vue           | [RuoYi-Vue官网](http://ruoyi.vip/)                                                                  | 定期同步需要的功能                  |
-| 前端开发框架   | Vue、Element UI      | [Element UI官网](https://element.eleme.cn/#/zh-CN)                                                  |                            |
-| 后端开发框架   | SpringBoot          | [SpringBoot官网](https://spring.io/projects/spring-boot/#learn)                                     |                            |
-| 容器框架     | Undertow            | [Undertow官网](https://undertow.io/)                                                                | 基于 XNIO 的高性能容器             |
-| 权限认证框架   | Sa-Token、Jwt        | [Sa-Token官网](https://sa-token.dev33.cn/)                                                          | 强解耦、强扩展                    |
-| 关系数据库    | MySQL               | [MySQL官网](https://dev.mysql.com/)                                                                 | 适配 8.X 最低 5.7              |
-| 关系数据库    | Oracle              | [Oracle官网](https://www.oracle.com/cn/database/)                                                   | 适配 11g 12c                 |
-| 关系数据库    | PostgreSQL          | [PostgreSQL官网](https://www.postgresql.org/)                                                       | 适配 13 14                   |
-| 关系数据库    | SQLServer           | [SQLServer官网](https://docs.microsoft.com/zh-cn/sql/sql-server)                                    | 适配 2017 2019               |
-| 缓存数据库    | Redis               | [Redis官网](https://redis.io/)                                                                      | 适配 6.X 最低 4.X              |
-| 数据库框架    | Mybatis-Plus        | [Mybatis-Plus文档](https://baomidou.com/guide/)                                                     | 快速 CRUD 增加开发效率             |
-| 数据库框架    | p6spy               | [p6spy官网](https://p6spy.readthedocs.io/)                                                          | 更强劲的 SQL 分析                |
-| 多数据源框架   | dynamic-datasource  | [dynamic-ds文档](https://www.kancloud.cn/tracy5546/dynamic-datasource/content)                      | 支持主从与多种类数据库异构              |
-| 序列化框架    | Jackson             | [Jackson官网](https://github.com/FasterXML/jackson)                                                 | 统一使用 jackson 高效可靠          |
-| Redis客户端 | Redisson            | [Redisson文档](https://github.com/redisson/redisson/wiki/%E7%9B%AE%E5%BD%95)                        | 支持单机、集群配置                  |
-| 分布式限流    | Redisson            | [Redisson文档](https://github.com/redisson/redisson/wiki/%E7%9B%AE%E5%BD%95)                        | 全局、请求IP、集群ID 多种限流          |
-| 分布式队列    | Redisson            | [Redisson文档](https://github.com/redisson/redisson/wiki/%E7%9B%AE%E5%BD%95)                        | 普通队列、延迟队列、优先队列 等           |
-| 分布式锁     | Lock4j              | [Lock4j官网](https://gitee.com/baomidou/lock4j)                                                     | 注解锁、工具锁 多种多样               |
-| 分布式幂等    | Redisson            | [Lock4j文档](https://gitee.com/baomidou/lock4j)                                                     | 拦截重复提交                     |
-| 分布式日志    | TLog                | [TLog文档](https://yomahub.com/tlog/docs)                                                           | 支持跟踪链路日志记录、性能分析、链路排查       |
-| 分布式任务调度  | Xxl-Job             | [Xxl-Job官网](https://www.xuxueli.com/xxl-job/)                                                     | 高性能 高可靠 易扩展                |
-| 文件存储     | Minio               | [Minio文档](https://docs.min.io/)                                                                   | 本地存储                       |
-| 文件存储     | 七牛、阿里、腾讯            | [OSS使用文档](https://gitee.com/JavaLionLi/lxc-vue-plus/wikis/pages?sort_id=4359146&doc_id=1469725) | 云存储                        |
-| 短信模块     | 阿里、腾讯               | [短信使用文档](https://gitee.com/JavaLionLi/lxc-vue-plus/wikis/pages?sort_id=5578491&doc_id=1469725)  | 短信发送                       |
-| 监控框架     | SpringBoot-Admin    | [SpringBoot-Admin文档](https://codecentric.github.io/spring-boot-admin/current/)                    | 全方位服务监控                    |
-| 校验框架     | Validation          | [Validation文档](https://docs.jboss.org/hibernate/stable/validator/reference/en-US/html_single/)    | 增强接口安全性、严谨性 支持国际化          |
-| Excel框架  | Alibaba EasyExcel   | [EasyExcel文档](https://www.yuque.com/easyexcel/doc/easyexcel)                                      | 性能优异 扩展性强                  |
-| 文档框架     | SpringDoc、javadoc   | [接口文档](https://gitee.com/JavaLionLi/lxc-vue-plus/wikis/pages?sort_id=5805266&doc_id=1469725)    | 无注解零入侵基于java注释             |
-| 工具类框架    | Hutool、Lombok       | [Hutool文档](https://www.hutool.cn/docs/)                                                           | 减少代码冗余 增加安全性               |
-| 代码生成器    | 适配MP、Knife4j规范化代码   | [Hutool文档](https://www.hutool.cn/docs/)                                                           | 一键生成前后端代码                  |
-| 部署方式     | Docker              | [Docker文档](https://docs.docker.com/)                                                              | 容器编排 一键部署业务集群              |
-| 国际化      | SpringMessage       | [SpringMVC文档](https://docs.spring.io/spring-framework/docs/current/reference/html/web.html#mvc)   | Spring标准国际化方案              |
+- 当前版本：4.3.1
+- JDK：8+
+- Maven：3.6+
+- Spring Boot：2.7.5
+- 默认端口：8088（见 `lxc-admin/src/main/resources/application.yml`）
 
-## 参考文档
+## 模块结构
 
-使用框架前请仔细阅读文档重点注意事项
-<br>
-> [初始化项目 必看](https://gitee.com/JavaLionLi/lxc-vue-plus/wikis/pages?sort_id=4164117&doc_id=1469725)
->> [https://gitee.com/JavaLionLi/lxc-vue-plus/wikis/pages?sort_id=4164117&doc_id=1469725](https://gitee.com/JavaLionLi/lxc-vue-plus/wikis/pages?sort_id=4164117&doc_id=1469725)
->
->[专栏与视频 入门必看](https://gitee.com/JavaLionLi/lxc-vue-plus/wikis/pages?sort_id=5473272&doc_id=1469725)
->> [https://gitee.com/JavaLionLi/lxc-vue-plus/wikis/pages?sort_id=5473272&doc_id=1469725](https://gitee.com/JavaLionLi/lxc-vue-plus/wikis/pages?sort_id=5473272&doc_id=1469725)
->
->[部署项目 必看](https://gitee.com/JavaLionLi/lxc-vue-plus/wikis/pages?sort_id=4219382&doc_id=1469725)
->> [https://gitee.com/JavaLionLi/lxc-vue-plus/wikis/pages?sort_id=4219382&doc_id=1469725](https://gitee.com/JavaLionLi/lxc-vue-plus/wikis/pages?sort_id=4219382&doc_id=1469725)
->
->[参考文档 Wiki](https://gitee.com/JavaLionLi/lxc-vue-plus/wikis/pages)
->> [https://gitee.com/JavaLionLi/lxc-vue-plus/wikis/pages](https://gitee.com/JavaLionLi/lxc-vue-plus/wikis/pages)
+- `lxc-admin`：主启动模块（Web 入口）
+- `lxc-framework`：框架核心（Web、Undertow、AOP、Actuator 等）
+- `lxc-system`：系统业务模块
+- `lxc-common`：公共工具与通用能力
+- `lxc-job`：任务调度执行模块（XXL-Job）
+- `lxc-generator`：代码生成模块（Velocity）
+- `lxc-machine`：机器/LXC 相关业务模块
+- `lxc-lxd-api`：LXD API 客户端模块
+- `lxc-oss`：对象存储模块
+- `lxc-sms`：短信模块
+- `lxc-demo`：示例功能模块
+- `lxc-extend/lxc-monitor-admin`：监控中心扩展服务
+- `lxc-extend/lxc-xxl-job-admin`：XXL-Job 管理端扩展服务
 
-## 软件架构图
+## 实际使用的核心组件
 
-![Plus部署架构图](https://images.gitee.com/uploads/images/2021/1112/202137_673ac5d2_1766278.png "Plus部署架构图.png")
-## 贡献代码
+以下为仓库 `pom.xml` 与配置文件中已落地的主要组件：
 
-欢迎各路英雄豪杰 `PR` 代码 请提交到 `dev` 开发分支 统一测试发版
+- Web 容器：Undertow
+- 权限认证：Sa-Token、Sa-Token-JWT
+- 数据访问：MyBatis-Plus、dynamic-datasource、Druid、p6spy
+- 缓存与分布式能力：Redis、Redisson、Lock4j
+- 任务调度：XXL-Job
+- 服务监控：Spring Boot Actuator、Spring Boot Admin
+- 文档能力：SpringDoc OpenAPI
+- 文件存储：AWS S3 SDK（兼容 MinIO 场景）
+- 短信能力：阿里云短信、腾讯云短信（按需启用）
+- 工具库：Hutool、Lombok、Jackson
+- Excel：EasyExcel、Apache POI
+- 链路日志：TLog
+- 其他：Kafka Client、Telegram Bots、JSch
 
-框架定位为 `通用后台管理系统(分布式集群强化)` 原则上不接受业务 `PR`
+## 数据库支持
 
-### 其他
+代码与依赖已包含以下数据库驱动支持：
 
-* 同步升级 RuoYi-Vue
-* GitHub 地址 [lxc-vue-plus-github](https://github.com/JavaLionLi/lxc-vue-plus)
-* 单模块 分支 [lxc-vue-plus-fast](https://gitee.com/JavaLionLi/lxc-vue-plus/tree/fast/)
-* 微服务 分支 [RuoYi-Cloud-Plus](https://gitee.com/JavaLionLi/RuoYi-Cloud-Plus)
-* 用户扩展项目 [扩展项目列表](https://gitee.com/JavaLionLi/lxc-vue-plus/wikis/pages?sort_id=4478302&doc_id=1469725)
+- MySQL（默认）
+- Oracle
+- PostgreSQL
+- SQL Server
 
-## 加群与捐献
+默认开发配置以 MySQL 为主（见 `lxc-admin/src/main/resources/application-dev.yml`）。
 
-> [加群与捐献](https://gitee.com/JavaLionLi/lxc-vue-plus/wikis/加群与捐献?sort_id=4104598)
->> [https://gitee.com/JavaLionLi/lxc-vue-plus/wikis/加群与捐献?sort_id=4104598](https://gitee.com/JavaLionLi/lxc-vue-plus/wikis/加群与捐献?sort_id=4104598)
+## 快速开始
 
-## 捐献作者
-作者为兼职做开源,平时还需要工作,如果帮到了您可以请作者吃个盒饭  
-<img src="https://images.gitee.com/uploads/images/2022/0218/213734_b1b8197f_1766278.jpeg" width="300px" height="450px" />
-<img src="https://images.gitee.com/uploads/images/2021/0525/101713_3d18b119_1766278.jpeg" width="300px" height="450px" />
+### 1. 准备基础服务
 
-## 业务功能
+至少准备以下组件：
 
-| 功能 | 介绍 |
-|---|---|
-| 用户管理 | 用户是系统操作者，该功能主要完成系统用户配置。 |
-| 部门管理 | 配置系统组织机构（公司、部门、小组），树结构展现支持数据权限。 |
-| 岗位管理 | 配置系统用户所属担任职务。 |
-| 菜单管理 | 配置系统菜单，操作权限，按钮权限标识等。 |
-| 角色管理 | 角色菜单权限分配、设置角色按机构进行数据范围权限划分。 |
-| 字典管理 | 对系统中经常使用的一些较为固定的数据进行维护。 |
-| 参数管理 | 对系统动态配置常用参数。 |
-| 通知公告 | 系统通知公告信息发布维护。 |
-| 操作日志 | 系统正常操作日志记录和查询；系统异常信息日志记录和查询。 |
-| 登录日志 | 系统登录日志记录查询包含登录异常。 |
-| 文件管理 | 系统文件上传、下载等管理。 |
-| 定时任务 | 在线（添加、修改、删除)任务调度包含执行结果日志。 |
-| 代码生成 | 前后端代码的生成（java、html、xml、sql）支持CRUD下载 。 |
-| 系统接口 | 根据业务代码自动生成相关的api接口文档。 |
-| 服务监控 | 监视集群系统CPU、内存、磁盘、堆栈、在线日志、Spring相关配置等。 |
-| 缓存监控 | 对系统的缓存信息查询，命令统计等。 |
-| 在线构建器 | 拖动表单元素生成相应的HTML代码。 |
-| 连接池监视 | 监视当前系统数据库连接池状态，可进行分析SQL找出系统性能瓶颈。 |
-| 使用案例 | 系统的一些功能案例 |
+- MySQL
+- Redis
 
-## 演示图例
+可选组件：
 
-<table border="1" cellpadding="1" cellspacing="1" style="width:500px">
-    <tbody>
-        <tr>
-            <td><img src="https://oscimg.oschina.net/oscnet/up-972235bcbe3518dedd351ff0e2ee7d1031c.png" width="1920" /></td>
-            <td><img src="https://oscimg.oschina.net/oscnet/up-5e0097702fa91e2e36391de8127676a7fa1.png" width="1920" /></td>
-        </tr>
-        <tr>
-            <td>
-            <p><img src="https://oscimg.oschina.net/oscnet/up-e56e3828f48cd9886d88731766f06d5f3c1.png" width="1920" /></p>
-            </td>
-            <td><img src="https://oscimg.oschina.net/oscnet/up-0715990ea1a9f254ec2138fcd063c1f556a.png" width="1920" /></td>
-        </tr>
-        <tr>
-            <td><img src="https://oscimg.oschina.net/oscnet/up-eaf5417ccf921bb64abb959e3d8e290467f.png" width="1920" /></td>
-            <td><img src="https://oscimg.oschina.net/oscnet/up-fc285cf33095ebf8318de6999af0f473861.png" width="1920" /></td>
-        </tr>
-        <tr>
-            <td><img src="https://oscimg.oschina.net/oscnet/up-60c83fd8bd61c29df6dbf47c88355e9c272.png" width="1920" /></td>
-            <td><img src="https://oscimg.oschina.net/oscnet/up-7f731948c8b73c7d90f67f9e1c7a534d5c3.png" width="1920" /></td>
-        </tr>
-        <tr>
-            <td><img src="https://oscimg.oschina.net/oscnet/up-e4de89b5e2d20c52d3c3a47f9eb88eb8526.png" width="1920" /></td>
-            <td><img src="https://oscimg.oschina.net/oscnet/up-8791d823a508eb90e67c604f36f57491a67.png" width="1920" /></td>
-        </tr>
-        <tr>
-            <td><img src="https://oscimg.oschina.net/oscnet/up-4589afd99982ead331785299b894174feb6.png" width="1920" /></td>
-            <td><img src="https://oscimg.oschina.net/oscnet/up-8ea177cdacaea20995daf2f596b15232561.png" width="1920" /></td>
-        </tr>
-        <tr>
-            <td><img src="https://oscimg.oschina.net/oscnet/up-32d1d04c55c11f74c9129fbbc58399728c4.png" width="1920" /></td>
-            <td><img src="https://oscimg.oschina.net/oscnet/up-04fa118f7631b7ae6fd72299ca0a1430a63.png" width="1920" /></td>
-        </tr>
-        <tr>
-            <td><img src="https://oscimg.oschina.net/oscnet/up-fe7e85b65827802bfaadf3acd42568b58c7.png" width="1920" /></td>
-            <td><img src="https://oscimg.oschina.net/oscnet/up-eff2b02a54f8188022d8498cfe6af6fcc06.png" width="1920" /></td>
-        </tr>
-    </tbody>
-</table>
+- MinIO（对象存储）
+- 监控中心（lxc-monitor-admin）
+- XXL-Job Admin（lxc-xxl-job-admin）
+
+仓库已提供 Docker 编排示例：
+
+- `script/docker/docker-compose.yml`
+- `script/docker/database.yml`
+
+### 2. 初始化数据库
+
+可使用仓库中的 SQL 文件初始化（按你的实际库类型选择）：
+
+- `lxc_sql/`
+- `script/sql/`
+
+### 3. 修改配置
+
+按环境修改以下配置文件中的数据库、Redis、任务调度与监控地址：
+
+- `lxc-admin/src/main/resources/application-dev.yml`
+- `lxc-admin/src/main/resources/application-prod.yml`
+
+### 4. 构建与启动
+
+在仓库根目录执行：
+
+```bash
+mvn clean package -DskipTests
+java -jar lxc-admin/target/lxc-admin.jar
+```
+
+启动类：`com.lxc.LxcApplication`
+
+## 生产部署建议
+
+- 使用 `prod` 配置并替换默认账号密码与密钥
+- 关闭不必要的调试/测试开关
+- 将数据库、Redis、短信、对象存储等敏感配置改为环境变量或外部密钥管理
+- 为 `lxc-admin`、`lxc-monitor-admin`、`lxc-xxl-job-admin` 分别规划独立端口与反向代理
+
+## 说明
+
+- 本仓库当前仅包含后端与扩展服务代码，前端不在此仓库内
+- 如需精简功能，可按模块在根 `pom.xml` 中调整构建模块与依赖

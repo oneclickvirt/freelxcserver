@@ -118,7 +118,7 @@ public class InstancesUtils {
     public static SourceConfigBuilder getDefaultSourceConfigBuilder() {
         return new SourceConfigBuilder()
             .setType("image")
-            .setAlias("debian/11")
+            .setAlias("debian/11/cloud")
             .setServer("https://lxdimages.spiritlhl.net/")
             .setProtocol("simplestreams")
             .setMode("pull");
